@@ -162,7 +162,29 @@ Elle comporte deux modules : **prédiction de rendement céréalier** et **déte
 
 with gr.Blocks() as interface:
 
-    gr.Markdown("# 🌾 Plateforme agricole IA")
+    gr.Markdown("# Plateforme agricole IA")
+    
+    gr.HTML("""
+        <div style="
+            background-color: #fff8e1;
+            border: 1px solid #f9a825;
+            border-left: 4px solid #f9a825;
+            border-radius: 6px;
+            padding: 8px 14px;
+            margin: 4px 0 10px 0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.85em;
+            color: #5d4037;
+        ">
+            <span style="font-size: 1.1em;">⚠️</span>
+            <span>
+                <strong>Mode démonstration</strong> — Les modèles sont entraînés sur des données synthétiques.
+                Les résultats sont à titre illustratif et ne se substituent pas à un diagnostic terrain.
+            </span>
+        </div>
+    """)
 
     with gr.Tabs():
 
