@@ -12,8 +12,13 @@ def train_model_troupeau():
     scaler_t = StandardScaler()
     X_t_scaled = scaler_t.fit_transform(X_t)
 
+
     modele_anomalie = IsolationForest(
         n_estimators=200, contamination=0.08, random_state=42
     )
     modele_anomalie.fit(X_t_scaled)
-    return modele_anomalie, scaler_t
+
+    scores_train = modele_anomalie.score_samples(X_t_scaled)
+    score_min = scores_train.min()
+    score_max = scores_train.max()
+    return modele_anomalie, scaler_t, score_min, score_max
