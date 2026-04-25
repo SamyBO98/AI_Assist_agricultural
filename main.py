@@ -57,6 +57,13 @@ def create_dataSet_troupeau():
     #Detect anomaly
     features_trp = ["production", "taux_tb", "taux_tp", "temperature_v", "ccs", "bcs"]
     X_t = df_trp[features_trp]
+    scaler_t = StandardScaler()
+    X_t_scaled = scaler_t.fit_transform(X_t)
+    #Detection anomalie sans labels
+    modele_anomalie = IsolationForest(
+        n_estimators=200, contamination=0.08, random_state=42
+    )
+    modele_anomalie.fit(X_t_scaled)
 
 
 if __name__ == '__main__':
