@@ -22,22 +22,22 @@ def analyser_vache(model, scaler, score_min, score_max, production, taux_tb, tau
     alertes = []
 
     if ccs > 400:
-        alertes.append(f"CCS très élevé ({ccs:.0f} k/mL) — suspicion mammite, prélèvement urgent")
+        alertes.append(f"CCS très élevé ({ccs:.0f} k/mL) suspicion mammite, prélèvement urgent")
     elif ccs > 200:
-        alertes.append(f"CCS élevé ({ccs:.0f} k/mL) — surveiller l'évolution, hygiène traite")
+        alertes.append(f"CCS élevé ({ccs:.0f} k/mL) surveiller l'évolution, hygiène traite")
 
     if temperature_v > 39.5:
-        alertes.append(f"Hyperthermie ({temperature_v:.1f}°C) — fièvre possible, appeler vétérinaire")
+        alertes.append(f"Hyperthermie ({temperature_v:.1f}°C) fièvre possible, appeler vétérinaire")
 
     if production < 12:
-        alertes.append(f"Production faible ({production:.1f} L/j) — vérifier alimentation et confort")
+        alertes.append(f"Production faible ({production:.1f} L/j) vérifier alimentation et confort")
 
     if bcs < 2.0:
-        alertes.append("BCS très bas — animal trop maigre, risque cétose")
+        alertes.append("BCS très bas animal trop maigre, risque cétose")
     elif bcs > 4.0:
-        alertes.append("BCS élevé — risque surpoids, adapter ration")
+        alertes.append("BCS élevé risque surpoids, adapter ration")
 
     if not alertes:
-        alertes.append("Aucune anomalie détectée — animal en bonne santé apparente")
+        alertes.append("Aucune anomalie détectée animal en bonne santé apparente")
 
     return alertes, prediction, score_sante

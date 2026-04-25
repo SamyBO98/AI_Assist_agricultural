@@ -23,7 +23,9 @@ def creer_graphs(prediction, score_sante, alertes,
     angles = np.linspace(0, 2 * np.pi, len(labels_radar), endpoint=False).tolist()
     angles += angles[:1]
 
-    fig, axes = plt.subplots(1, 2, figsize=(11, 4.5))
+
+
+    fig = plt.figure(figsize=(11, 4.5))
     fig.patch.set_facecolor("#1a1a2e")
 
     # ===== RADAR =====
@@ -45,7 +47,7 @@ def creer_graphs(prediction, score_sante, alertes,
     ax_radar.grid(color="#333", linestyle="--", alpha=0.5)
 
     # ===== JAUGE =====
-    ax2 = axes[1]
+    ax2 = fig.add_subplot(122)
     ax2.set_facecolor("#16213e")
 
     ax2.set_xlim(0, 100)

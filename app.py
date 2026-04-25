@@ -18,14 +18,14 @@ def load_model():
 def load_model2():
     return train_model_troupeau()
 
-model, scaler, mae, r2 = load_model()
+model, scaler, mae, r2, X_train_scaled, y_train= load_model()
 model_vache, scaler_vache, score_min, score_max = train_model_troupeau()
 
 def pipeline_wrapper(temperature, pluviometrie, azote,
                      ph_sol, matiere_org, densite_semis,
                      type_sol):
     return pipeline(
-        model, scaler,
+        model, scaler, X_train_scaled, y_train,
         temperature, pluviometrie, azote,
         ph_sol, matiere_org, densite_semis,
         type_sol
@@ -92,6 +92,18 @@ def scenario_vache_mauvais():
         1.8,    # maigreur
         90,
         220
+    )
+
+def clear_inputs_vache():
+    return (
+        None,     # faible production
+        None,     # lait pauvre
+        None,
+        None,   # fièvre
+        None,    # CCS très élevé (mammite)
+        None,    # maigreur
+        None,
+        None
     )
 
 
@@ -166,6 +178,8 @@ with gr.Blocks() as interface:
                     age = gr.Number(label="Âge (mois)")
                     lactation = gr.Number(label="Lactation (jours)")
 
+                    clear_btn = gr.Button("Clear")
+
                 with gr.Column(scale=2):
                     with gr.Row():
                         gr.Button("Bon").click(
@@ -186,7 +200,11 @@ with gr.Blocks() as interface:
 
                     out_v1 = gr.Plot()
                     out_v2 = gr.Textbox()
-
+            clear_btn.click(
+                fn=clear_inputs_vache,
+                inputs=[],
+                outputs=[production, tb, tp, temp_v, ccs, bcs, age, lactation]
+            )
             btn_v.click(
                 fn=pipeline_vache_wrapper,
                 inputs=[production, tb, tp, temp_v, ccs, bcs, age, lactation],
