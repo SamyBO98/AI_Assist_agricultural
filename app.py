@@ -4,22 +4,16 @@ matplotlib.use("Agg")
 import warnings
 warnings.filterwarnings("ignore")
 
-from models.culture import train_model_culture
+from models.culture import load_or_train_culture
 from viz.culture_viz import pipeline
 from config import SOLS
-
-from models.troupeau import train_model_troupeau
+ 
+from models.troupeau import load_or_train_troupeau
 from viz.vache_viz import pipeline_vache
 
 
-def load_model():
-    return train_model_culture()
-
-def load_model2():
-    return train_model_troupeau()
-
-model, scaler, mae, r2, X_train_scaled, y_train= load_model()
-model_vache, scaler_vache, score_min, score_max = train_model_troupeau()
+model, scaler, mae, r2, X_train_scaled, y_train= load_or_train_culture()
+model_vache, scaler_vache, score_min, score_max = load_or_train_troupeau()
 
 def pipeline_wrapper(temperature, pluviometrie, azote,
                      ph_sol, matiere_org, densite_semis,
@@ -105,6 +99,65 @@ def clear_inputs_vache():
         None,
         None
     )
+
+
+
+APROPOS_MD = """
+# Guide des indicateurs
+ 
+Cette plateforme utilise des modèles de machine learning pour aider à l'analyse agricole.
+Elle comporte deux modules : **prédiction de rendement céréalier** et **détection d'anomalies sur vaches laitières**.
+ 
+---
+ 
+## Module Culture : indicateurs
+ 
+| Indicateur | Unité | Valeur typique | Rôle |
+|---|---|---|---|
+| **Température** | °C | 12–18 °C | Température moyenne de la saison de croissance |
+| **Pluviométrie** | mm/an | 400–700 mm | Précipitations totales annuelles |
+| **Azote (N)** | kg N/ha | 120–200 kg/ha | Fertilisation azotée apportée à la culture |
+| **pH sol** | — | 6.0–7.5 | Acidité du sol (6.5–7.0 = idéal pour céréales) |
+| **Matière organique** | % | 1.5–4 % | Teneur en humus du sol — indicateur de fertilité |
+| **Densité semis** | grains/m² | 180–260 | Nombre de graines semées par m² |
+| **Type de sol** | — | Limoneux, Argileux… | Nature dominante du sol |
+ 
+**Rendement de référence :** la moyenne nationale française pour le blé est d'environ **7,4 t/ha**.
+ 
+---
+ 
+## Module Vache : indicateurs
+ 
+### Lait
+| Indicateur | Unité | Plage normale | Signification |
+|---|---|---|---|
+| **Production** | L/jour | 20–35 L/j | Quantité de lait produite par vache par jour |
+| **TB** (Taux Butyreux) | g/kg | 35–45 g/kg | Teneur en matières grasses du lait. Un TB < 30 peut indiquer une acidose |
+| **TP** (Taux Protéique) | g/kg | 30–38 g/kg | Teneur en protéines du lait. Un TP bas peut signaler un déficit énergétique |
+ 
+### Santé
+| Indicateur | Unité | Plage normale | Signification |
+|---|---|---|---|
+| **CCS** (Comptage Cellules Somatiques) | milliers/mL | < 200 k/mL | Indicateur d'infection mammaire. **> 400 k/mL = suspicion mammite**. Plus le chiffre est bas, mieux c'est |
+| **BCS** (Body Condition Score) | score 1–5 | 2.5–3.5 | État d'engraissement de l'animal. < 2 = maigreur, > 4 = surpoids |
+| **Température** | °C | 38.0–39.5 °C | Température corporelle. > 39.5 °C = fièvre potentielle |
+ 
+### Profil animal
+| Indicateur | Unité | Info |
+|---|---|---|
+| **Âge** | mois | Influence la production et la sensibilité aux maladies |
+| **Stade de lactation** | jours | Cycle de 305 jours — la production varie fortement selon le stade |
+ 
+---
+ 
+## Modèles utilisés
+ 
+- **Culture** : `HistGradientBoostingRegressor` (scikit-learn) pour la régression sur données simulées
+- **Vache** : `IsolationForest` pour la détection non supervisée d'anomalies
+ 
+> **Note** : les modèles sont entraînés sur des données synthétiques à des fins de démonstration.
+> Pour un usage en production, ils doivent être réentraînés sur de vraies données terrain.
+"""
 
 
 with gr.Blocks() as interface:
@@ -210,6 +263,10 @@ with gr.Blocks() as interface:
                 inputs=[production, tb, tp, temp_v, ccs, bcs, age, lactation],
                 outputs=[out_v1, out_v2]
             )
+        with gr.Tab("À propos"):
+            gr.Markdown(APROPOS_MD)
+
+
 
 
 if __name__ == '__main__':

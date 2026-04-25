@@ -4,7 +4,7 @@ warnings.filterwarnings("ignore")
 
 def analyser_vache(model, scaler, score_min, score_max, production, taux_tb, taux_tp, temperature_v, ccs, bcs, age_mois, lactation_j):
     
-    X_input = np.array([[production, taux_tb, taux_tp, temperature_v, ccs, bcs]])
+    X_input = np.array([[production, taux_tb, taux_tp, temperature_v, ccs, bcs, age_mois, lactation_j]])
     X_scaled = scaler.transform(X_input)
 
     # plus négatif = plus anormal

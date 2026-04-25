@@ -4,8 +4,13 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_absolute_error, r2_score
 from data.generate_data import generer_donnees_cultures
+import joblib
+import os
 import warnings
 warnings.filterwarnings("ignore")
+
+
+MODEL_PATH = "models/saved/culture_model.pkl"
 
 def train_model_culture():
     df_cult = generer_donnees_cultures()
@@ -37,6 +42,23 @@ def train_model_culture():
 
     mae_cult = mean_absolute_error(y_test, modele_rendement.predict(X_test_scaled))
     r2_cult  = r2_score(y_test, modele_rendement.predict(X_test_scaled))
-    print(mae_cult)
-    print(r2_cult)
+    # Sauvegarde
+    os.makedirs(os.path.dirname(MODEL_PATH), exist_ok=True)
+    joblib.dump({
+        "model": modele_rendement,
+        "scaler": scaler_c,
+        "mae": mae_cult,
+        "r2": r2_cult,
+        "X_train_scaled": X_train_scaled,
+        "y_train": y_train,
+    }, MODEL_PATH)
+    print(f"[culture] Modèle sauvegardé → {MODEL_PATH} | MAE={mae_cult:.3f} R²={r2_cult:.3f}")
     return modele_rendement, scaler_c, mae_cult, r2_cult,  X_train_scaled, y_train
+
+
+def load_or_train_culture():
+    if os.path.exists(MODEL_PATH):
+        print(f"[culture] Chargement depuis {MODEL_PATH}")
+        data = joblib.load(MODEL_PATH)
+        return data["model"], data["scaler"], data["mae"], data["r2"], data["X_train_scaled"], data["y_train"]
+    return train_model_culture()
