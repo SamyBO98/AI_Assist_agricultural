@@ -12,28 +12,27 @@ from models.troupeau import load_or_train_troupeau
 from viz.vache_viz import pipeline_vache
 
 
-model, scaler, mae, r2, X_train_scaled, y_train= load_or_train_culture()
+model, scaler, mae, r2, importances= load_or_train_culture()
 model_vache, scaler_vache, score_min, score_max = load_or_train_troupeau()
 
 
 
 def valider_champs(obligatoires, strictement_positifs):
     """
-    champs_positifs : dict { label: valeur } obligatoires et doivent être > 0
-    champs_optionnels : dict { label: valeur } obligatoires mais peuvent être nuls (ex: température)
-    Retourne une liste de messages d'erreur (vide = tout est OK).
+    obligatoires        : dict { label: valeur } — juste vérif présence (peuvent être 0 ou négatifs)
+    strictement_positifs: dict { label: valeur } — obligatoires ET doivent être > 0
     """
     erreurs = []
     for label, valeur in obligatoires.items():
         if valeur is None:
-            erreurs.append(f"• {label} : champ obligatoire")
+            erreurs.append(f"<li style='display:list-item; margin:2px 0;'>{label} : champ obligatoire</li>")
         elif valeur < 0:
-            erreurs.append(f"• {label} : la valeur ne peut pas être négative")
+            erreurs.append(f"<li style='display:list-item; margin:2px 0;'>{label} : la valeur ne peut pas être négative</li>")
     for label, valeur in strictement_positifs.items():
         if valeur is None:
-            erreurs.append(f"• {label} : champ obligatoire")
+            erreurs.append(f"<li style='display:list-item; margin:2px 0;'>{label} : champ obligatoire</li>")
         elif valeur <= 0:
-            erreurs.append(f"• {label} : la valeur doit être supérieure à 0")
+            erreurs.append(f"<li style='display:list-item; margin:2px 0;'>{label} : la valeur doit être supérieure à 0</li>")
     return erreurs
 
 
@@ -53,7 +52,7 @@ def bandeau_erreur(erreurs):
             font-size: 0.85em;
         ">
             <strong>Veuillez corriger les erreurs suivantes :</strong>
-            <ul style="margin: 6px 0 0 0; padding-left: 18px;">
+            <ul style="margin: 6px 0 0 0; padding-left: 20px; list-style-type: disc;">
                 {lignes}
             </ul>
         </div>
@@ -78,12 +77,12 @@ def pipeline_wrapper(temperature, pluviometrie, azote,
         }
     )
     if type_sol is None or type_sol == "":
-        erreurs.append("<li>Type de sol : champ obligatoire</li>")
+        erreurs.append("<li style='display:list-item; margin:2px 0;'>Type de sol : champ obligatoire</li>")
     if erreurs:
-        return None,  "", bandeau_erreur(erreurs)
+        return None, "", bandeau_erreur(erreurs)
     
     fig, texte = pipeline(
-        model, scaler, X_train_scaled, y_train,
+        model, scaler, importances,
         temperature, pluviometrie, azote,
         ph_sol, matiere_org, densite_semis,
         type_sol
@@ -94,7 +93,6 @@ def pipeline_wrapper(temperature, pluviometrie, azote,
 def pipeline_vache_wrapper(production, taux_tb, taux_tp,
                            temperature_v, ccs, bcs,
                            age_mois, lactation_j):
-    
 
     erreurs = valider_champs(
         obligatoires={
@@ -175,12 +173,12 @@ def scenario_vache_mauvais():
 
 def clear_inputs_vache():
     return (
-        None,     # faible production
-        None,     # lait pauvre
         None,
-        None,   # fièvre
-        None,    # CCS très élevé (mammite)
-        None,    # maigreur
+        None,
+        None,
+        None,
+        None,
+        None,
         None,
         None
     )
@@ -247,7 +245,7 @@ Elle comporte deux modules : **prédiction de rendement céréalier** et **déte
 
 with gr.Blocks() as interface:
 
-    gr.Markdown("# Plateforme agricole IA")
+    gr.Markdown("# 🌾 Plateforme agricole IA")
 
     gr.HTML("""
         <div style="
@@ -362,6 +360,7 @@ with gr.Blocks() as interface:
                     err_v = gr.HTML()
                     out_v1 = gr.Plot()
                     out_v2 = gr.Textbox()
+
             clear_btn.click(
                 fn=clear_inputs_vache,
                 inputs=[],
@@ -372,10 +371,9 @@ with gr.Blocks() as interface:
                 inputs=[production, tb, tp, temp_v, ccs, bcs, age, lactation],
                 outputs=[out_v1, out_v2, err_v]
             )
+
         with gr.Tab("À propos"):
             gr.Markdown(APROPOS_MD)
-
-
 
 
 if __name__ == '__main__':

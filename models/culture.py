@@ -3,7 +3,9 @@ from sklearn.ensemble import HistGradientBoostingRegressor
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_absolute_error, r2_score
+from sklearn.inspection import permutation_importance
 from data.generate_data import generer_donnees_cultures
+import numpy as np
 import joblib
 import os
 import warnings
@@ -42,6 +44,10 @@ def train_model_culture():
 
     mae_cult = mean_absolute_error(y_test, modele_rendement.predict(X_test_scaled))
     r2_cult  = r2_score(y_test, modele_rendement.predict(X_test_scaled))
+
+    result = permutation_importance(modele_rendement, X_train_scaled, y_train, n_repeats=10, random_state=42)
+    importances = np.clip(result.importances_mean, 0, None)
+    importances = importances / importances.sum()
     # Sauvegarde
     os.makedirs(os.path.dirname(MODEL_PATH), exist_ok=True)
     joblib.dump({
@@ -49,16 +55,20 @@ def train_model_culture():
         "scaler": scaler_c,
         "mae": mae_cult,
         "r2": r2_cult,
-        "X_train_scaled": X_train_scaled,
-        "y_train": y_train,
+        "importances": importances,
     }, MODEL_PATH)
-    print(f"[culture] Modèle sauvegardé → {MODEL_PATH} | MAE={mae_cult:.3f} R²={r2_cult:.3f}")
-    return modele_rendement, scaler_c, mae_cult, r2_cult,  X_train_scaled, y_train
+    print(f"[culture] Modèle sauvegardé -> {MODEL_PATH} | MAE={mae_cult:.3f} R²={r2_cult:.3f}")
+    return modele_rendement, scaler_c, mae_cult, r2_cult, importances
 
 
 def load_or_train_culture():
     if os.path.exists(MODEL_PATH):
         print(f"[culture] Chargement depuis {MODEL_PATH}")
         data = joblib.load(MODEL_PATH)
-        return data["model"], data["scaler"], data["mae"], data["r2"], data["X_train_scaled"], data["y_train"]
+        # Ré-entraînement si ancien pkl sans importances précalculées
+        if "importances" not in data:
+            print(f"[culture] Ancien format détecté, ré-entraînement:")
+            os.remove(MODEL_PATH)
+            return train_model_culture()
+        return data["model"], data["scaler"], data["mae"], data["r2"], data["importances"]
     return train_model_culture()

@@ -6,7 +6,7 @@ import warnings
 warnings.filterwarnings("ignore")
 
 
-def creer_graphs(model,X_train, y_train, rendement_pred, rend_opt):
+def creer_graphs(importances, rendement_pred, rend_opt):
     fig, axes = plt.subplots(1, 2, figsize=(11, 4.5))
     for ax in axes:
         ax.set_facecolor("#16213e")
@@ -15,10 +15,6 @@ def creer_graphs(model,X_train, y_train, rendement_pred, rend_opt):
         "Temp.", "Pluie", "Azote",
         "pH sol", "Mat. org.", "Densité", "Type sol"
     ]
-
-    result = permutation_importance(model, X_train, y_train, n_repeats=10, random_state=42)
-    importances = np.clip(result.importances_mean, 0, None)  # éviter valeurs négatives
-    importances = importances / importances.sum()             # normaliser à 1
 
     colors = [
         "#4CAF50" if i == np.argmax(importances) else "#81C784"
@@ -66,11 +62,11 @@ def creer_graphs(model,X_train, y_train, rendement_pred, rend_opt):
     return fig
 
 
-def pipeline(model, scaler, X_train, y_train, temperature, pluviometrie, azote, ph_sol, matiere_org, densite_semis, type_sol):
+def pipeline(model, scaler, importances, temperature, pluviometrie, azote, ph_sol, matiere_org, densite_semis, type_sol):
 
     rend_pred, rend_opt, ecart, conseils = predire_rendement(model, scaler, temperature, pluviometrie, azote, ph_sol, matiere_org, densite_semis, type_sol)
 
-    fig = creer_graphs(model, X_train, y_train, rend_pred, rend_opt)
+    fig = creer_graphs(importances, rend_pred, rend_opt)
 
     texte = (
         f"Rendement estimé : {rend_pred:.2f} t/ha\n"
