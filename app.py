@@ -17,22 +17,50 @@ model_vache, scaler_vache, score_min, score_max = load_or_train_troupeau()
 
 
 
-def valider_champs(obligatoires, strictement_positifs):
+
+# ──────────────────────────────────────────────
+# Bornes physiques extrêmes par champ
+# (min, max, unité, justification)
+# ──────────────────────────────────────────────
+BORNES_CULTURE = {
+    "Température (°C)"      : (-15,  50,   "°C",      "de -15°C (gel extrême) à 50°C (record absolu au sol)"),
+    "Pluviométrie (mm/an)"  : (  0,  12000,"mm/an",   "de 0 (sécheresse totale) à 12 000 mm (Meghalaya, Inde)"),
+    "Azote (kg N/ha)"       : (  0,  400,  "kg N/ha", "de 0 (zéro intrant) à 400 kg/ha (au-delà = toxique)"),
+    "pH sol"                : (  2,  11,   "",         "de 2.0 (sol volcanique acide) à 11.0 (sol sodique)"),
+    "Matière organique (%)" : (  0,  100,  "%",        "de 0% (sable pur) à 100% (tourbe pure)"),
+    "Densité semis (gr/m²)" : (  1,  600,  "gr/m²",   "de 1 grain/m² à 600 gr/m² (au-delà = étouffement)"),
+}
+
+BORNES_VACHE = {
+    "Production lait (L/j)" : (  0,   90,  "L/j",   "de 0 (vache tarie) à 90 L/j (record mondial Holstein)"),
+    "TB (g/kg)"             : ( 20,   80,  "g/kg",  "de 20 g/kg (pathologique) à 80 g/kg (race à viande)"),
+    "TP (g/kg)"             : ( 20,   60,  "g/kg",  "de 20 g/kg (pathologique) à 60 g/kg (extrême)"),
+    "Température (°C)"      : ( 35,   42,  "°C",    "de 35°C (hypothermie sévère) à 42°C (hyperthermie létale)"),
+    "CCS (k/mL)"            : ( 10, 10000, "k/mL",  "de 10 k/mL (minimum analytique) à 10 000 k/mL (mammite aiguë)"),
+    "BCS (1–5)"             : (  1,    5,  "",      "de 1.0 (cachexie) à 5.0 (obésité maximale)"),
+    "Âge (mois)"            : ( 12,  240,  "mois",  "de 12 mois (génisse primipare) à 240 mois (20 ans)"),
+    "Lactation (jours)"     : (  1,  500,  "jours", "de 1 jour à 500 jours (lactation prolongée)"),
+}
+
+
+def li(msg):
+    return f"<li style='display:list-item; margin:2px 0;'>{msg}</li>"
+
+
+def valider_champs(valeurs, bornes):
     """
-    obligatoires        : dict { label: valeur } — juste vérif présence (peuvent être 0 ou négatifs)
-    strictement_positifs: dict { label: valeur } — obligatoires ET doivent être > 0
+    valeurs : dict { label: valeur }
+    bornes  : dict { label: (min, max, unité, justification) }
+    Retourne une liste de <li> d'erreurs.
     """
     erreurs = []
-    for label, valeur in obligatoires.items():
+    for label, valeur in valeurs.items():
+        vmin, vmax, unite, justif = bornes[label]
         if valeur is None:
-            erreurs.append(f"<li style='display:list-item; margin:2px 0;'>{label} : champ obligatoire</li>")
-        elif valeur < 0:
-            erreurs.append(f"<li style='display:list-item; margin:2px 0;'>{label} : la valeur ne peut pas être négative</li>")
-    for label, valeur in strictement_positifs.items():
-        if valeur is None:
-            erreurs.append(f"<li style='display:list-item; margin:2px 0;'>{label} : champ obligatoire</li>")
-        elif valeur <= 0:
-            erreurs.append(f"<li style='display:list-item; margin:2px 0;'>{label} : la valeur doit être supérieure à 0</li>")
+            erreurs.append(li(f"{label} : champ obligatoire"))
+        elif valeur < vmin or valeur > vmax:
+            plage = f"{vmin}–{vmax} {unite}".strip()
+            erreurs.append(li(f"{label} : valeur hors limites physiques ({plage}) -> {justif}"))
     return erreurs
 
 
@@ -59,54 +87,51 @@ def bandeau_erreur(erreurs):
     """
 
 
-
 def pipeline_wrapper(temperature, pluviometrie, azote,
                      ph_sol, matiere_org, densite_semis,
                      type_sol):
-    
+
     erreurs = valider_champs(
-        obligatoires={
+        valeurs={
             "Température (°C)"      : temperature,
             "Pluviométrie (mm/an)"  : pluviometrie,
             "Azote (kg N/ha)"       : azote,
             "pH sol"                : ph_sol,
             "Matière organique (%)" : matiere_org,
-        },
-        strictement_positifs={
             "Densité semis (gr/m²)" : densite_semis,
-        }
+        },
+        bornes=BORNES_CULTURE
     )
     if type_sol is None or type_sol == "":
-        erreurs.append("<li style='display:list-item; margin:2px 0;'>Type de sol : champ obligatoire</li>")
+        erreurs.append(li("Type de sol : champ obligatoire"))
     if erreurs:
         return None, "", bandeau_erreur(erreurs)
-    
+
     fig, texte = pipeline(
         model, scaler, importances,
         temperature, pluviometrie, azote,
         ph_sol, matiere_org, densite_semis,
         type_sol
     )
-
     return fig, texte, ""
+
 
 def pipeline_vache_wrapper(production, taux_tb, taux_tp,
                            temperature_v, ccs, bcs,
                            age_mois, lactation_j):
 
     erreurs = valider_champs(
-        obligatoires={
-            "Température (°C)"      : temperature_v,
+        valeurs={
             "Production lait (L/j)" : production,
             "TB (g/kg)"             : taux_tb,
             "TP (g/kg)"             : taux_tp,
+            "Température (°C)"      : temperature_v,
             "CCS (k/mL)"            : ccs,
-            "BCS (1-5)"             : bcs,
+            "BCS (1–5)"             : bcs,
+            "Âge (mois)"            : age_mois,
+            "Lactation (jours)"     : lactation_j,
         },
-        strictement_positifs={
-            "Âge (mois)"        : age_mois,
-            "Lactation (jours)" : lactation_j,
-        }
+        bornes=BORNES_VACHE
     )
     if erreurs:
         return None, "", bandeau_erreur(erreurs)
@@ -122,11 +147,13 @@ def pipeline_vache_wrapper(production, taux_tb, taux_tp,
 
 
 
+
+
 def scenario_bon():
     return 15, 600, 160, 6.7, 2.5, 210, "Limoneux"
 
 def scenario_moyen():
-    return 18, 500, 140, 6.2, 2.0, 200, "Argileux"
+    return 10, 200, 140, 6.2, 2.0, 200, "Argileux"
 
 def scenario_mauvais():
     return 35, 200, 300, 5.0, 0.8, 400, "Sableux"
@@ -152,7 +179,7 @@ def scenario_vache_moyen():
         20,     # production moyenne
         37,
         30,
-        38.8,   # légère hausse température
+        40.0,   # légère hausse température
         250,    # CCS moyen
         2.7,    # BCS un peu bas
         80,
