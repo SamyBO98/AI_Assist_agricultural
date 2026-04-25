@@ -245,7 +245,7 @@ Elle comporte deux modules : **prédiction de rendement céréalier** et **déte
 
 with gr.Blocks() as interface:
 
-    gr.Markdown("# 🌾 Plateforme agricole IA")
+    gr.Markdown("# Plateforme agricole IA")
 
     gr.HTML("""
         <div style="

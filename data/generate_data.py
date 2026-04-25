@@ -1,10 +1,11 @@
 import numpy as np
 import pandas as pd
 
-rng = np.random.default_rng(42)
+
 
 
 def generer_donnees_cultures(n=1200):
+    rng = np.random.default_rng(42)
     temperature   = rng.normal(14, 4, n).clip(2, 30)        # °C moyenne saison
     pluviometrie  = rng.normal(550, 120, n).clip(200, 900)  # mm/an
     azote         = rng.normal(160, 30, n).clip(60, 260)    # kg N/ha
@@ -41,6 +42,7 @@ def generer_donnees_cultures(n=1200):
 
 
 def generer_donnees_troupeau(n=800):
+    rng = np.random.default_rng(42)
     age_mois      = rng.integers(24, 120, n).astype(float)
     lactation_j   = rng.integers(1, 305, n).astype(float)
     production    = rng.normal(28, 6, n).clip(8, 50)   # L/jour
