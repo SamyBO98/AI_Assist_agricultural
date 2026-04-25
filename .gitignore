@@ -1,3 +1,7 @@
 __pycache__/
 *.pyc
 *.pyo
+
+# Modèles sérialisés auto-générés au premier lancement
+models/saved/
+*.pkl
