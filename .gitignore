@@ -5,3 +5,5 @@ __pycache__/
 # Modèles sérialisés auto-générés au premier lancement
 models/saved/
 *.pkl
+
+venv/
