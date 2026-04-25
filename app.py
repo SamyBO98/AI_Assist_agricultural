@@ -36,6 +36,31 @@ def valider_champs(obligatoires, strictement_positifs):
             erreurs.append(f"• {label} : la valeur doit être supérieure à 0")
     return erreurs
 
+
+def bandeau_erreur(erreurs):
+    if not erreurs:
+        return ""
+    lignes = "\n".join(erreurs)
+    return f"""
+        <div style="
+            background-color: #fff0f0;
+            border: 1px solid #e53935;
+            border-left: 4px solid #e53935;
+            border-radius: 6px;
+            padding: 10px 14px;
+            margin: 8px 0;
+            color: #b71c1c;
+            font-size: 0.85em;
+        ">
+            <strong>Veuillez corriger les erreurs suivantes :</strong>
+            <ul style="margin: 6px 0 0 0; padding-left: 18px;">
+                {lignes}
+            </ul>
+        </div>
+    """
+
+
+
 def pipeline_wrapper(temperature, pluviometrie, azote,
                      ph_sol, matiere_org, densite_semis,
                      type_sol):
@@ -53,16 +78,18 @@ def pipeline_wrapper(temperature, pluviometrie, azote,
         }
     )
     if type_sol is None or type_sol == "":
-        erreurs.append("• Type de sol : champ obligatoire")
+        erreurs.append("<li>Type de sol : champ obligatoire</li>")
     if erreurs:
-        return None, "Veuillez corriger les erreurs suivantes :\n\n" + "\n".join(erreurs)
+        return None,  "", bandeau_erreur(erreurs)
     
-    return pipeline(
+    fig, texte = pipeline(
         model, scaler, X_train_scaled, y_train,
         temperature, pluviometrie, azote,
         ph_sol, matiere_org, densite_semis,
         type_sol
     )
+
+    return fig, texte, ""
 
 def pipeline_vache_wrapper(production, taux_tb, taux_tp,
                            temperature_v, ccs, bcs,
@@ -84,14 +111,15 @@ def pipeline_vache_wrapper(production, taux_tb, taux_tp,
         }
     )
     if erreurs:
-        return None, "Veuillez corriger les erreurs suivantes :\n\n" + "\n".join(erreurs)
+        return None, "", bandeau_erreur(erreurs)
 
-    return pipeline_vache(
-        model_vache, scaler_vache,score_min, score_max,
+    fig, texte = pipeline_vache(
+        model_vache, scaler_vache, score_min, score_max,
         production, taux_tb, taux_tp,
         temperature_v, ccs, bcs,
         age_mois, lactation_j
     )
+    return fig, texte, ""
 
 
 
@@ -280,6 +308,7 @@ with gr.Blocks() as interface:
 
                     btn = gr.Button("Prédire culture")
 
+                    err1 = gr.HTML()
                     out1 = gr.Plot()
                     out2 = gr.Textbox()
 
@@ -292,7 +321,7 @@ with gr.Blocks() as interface:
             btn.click(
                 fn=pipeline_wrapper,
                 inputs=[temp, pluie, azote, ph, org, densite, sol],
-                outputs=[out1, out2]
+                outputs=[out1, out2, err1]
             )
 
         # ===================== VACHE =====================
@@ -330,6 +359,7 @@ with gr.Blocks() as interface:
                         )
                     btn_v = gr.Button("Analyser vache")
 
+                    err_v = gr.HTML()
                     out_v1 = gr.Plot()
                     out_v2 = gr.Textbox()
             clear_btn.click(
@@ -340,7 +370,7 @@ with gr.Blocks() as interface:
             btn_v.click(
                 fn=pipeline_vache_wrapper,
                 inputs=[production, tb, tp, temp_v, ccs, bcs, age, lactation],
-                outputs=[out_v1, out_v2]
+                outputs=[out_v1, out_v2, err_v]
             )
         with gr.Tab("À propos"):
             gr.Markdown(APROPOS_MD)
