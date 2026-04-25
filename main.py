@@ -13,8 +13,12 @@ import warnings
 warnings.filterwarnings("ignore")
 
 
+
+SOLS = {0: "Limoneux", 1: "Argileux", 2: "Sableux", 3: "Calcaire"}
+SOL_IDX = {v: k for k, v in SOLS.items()}
+
 #First model
-def create_dataSet_culture():
+def train_model_culture():
     df_cult = generer_donnees_cultures()
     #print(df_cult)
 
@@ -47,11 +51,12 @@ def create_dataSet_culture():
     r2_cult  = r2_score(y_test, modele_rendement.predict(X_test_scaled))
     print(mae_cult)
     print(r2_cult)
+    return modele_rendement, scaler_c
 
 
 
 #Second model
-def create_dataSet_troupeau():
+def train_model_troupeau():
     df_trp = generer_donnees_troupeau()
     #print(df_trp)
     #Detect anomaly
@@ -64,7 +69,14 @@ def create_dataSet_troupeau():
         n_estimators=200, contamination=0.08, random_state=42
     )
     modele_anomalie.fit(X_t_scaled)
+    return modele_anomalie,scaler_t
 
 
-if __name__ == '__main__':
-    create_dataSet_culture()
+def predire_rendement(model, scaler, temperature, pluviometrie, azote, ph_sol, matiere_org, densite_semis, type_sol_nom):
+    sol_idx = SOL_IDX.get(type_sol_nom, 0)
+    X_input = np.array([[temperature, pluviometrie, azote, ph_sol, matiere_org, densite_semis, sol_idx]])
+    X_scaled = scaler.transform(X_input)
+    rendement_pred = model.predict(X_scaled)[0]
+    return rendement_pred
+
+
