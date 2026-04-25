@@ -15,9 +15,48 @@ from viz.vache_viz import pipeline_vache
 model, scaler, mae, r2, X_train_scaled, y_train= load_or_train_culture()
 model_vache, scaler_vache, score_min, score_max = load_or_train_troupeau()
 
+
+
+def valider_champs(obligatoires, strictement_positifs):
+    """
+    champs_positifs : dict { label: valeur } obligatoires et doivent être > 0
+    champs_optionnels : dict { label: valeur } obligatoires mais peuvent être nuls (ex: température)
+    Retourne une liste de messages d'erreur (vide = tout est OK).
+    """
+    erreurs = []
+    for label, valeur in obligatoires.items():
+        if valeur is None:
+            erreurs.append(f"• {label} : champ obligatoire")
+        elif valeur < 0:
+            erreurs.append(f"• {label} : la valeur ne peut pas être négative")
+    for label, valeur in strictement_positifs.items():
+        if valeur is None:
+            erreurs.append(f"• {label} : champ obligatoire")
+        elif valeur <= 0:
+            erreurs.append(f"• {label} : la valeur doit être supérieure à 0")
+    return erreurs
+
 def pipeline_wrapper(temperature, pluviometrie, azote,
                      ph_sol, matiere_org, densite_semis,
                      type_sol):
+    
+    erreurs = valider_champs(
+        obligatoires={
+            "Température (°C)"      : temperature,
+            "Pluviométrie (mm/an)"  : pluviometrie,
+            "Azote (kg N/ha)"       : azote,
+            "pH sol"                : ph_sol,
+            "Matière organique (%)" : matiere_org,
+        },
+        strictement_positifs={
+            "Densité semis (gr/m²)" : densite_semis,
+        }
+    )
+    if type_sol is None or type_sol == "":
+        erreurs.append("• Type de sol : champ obligatoire")
+    if erreurs:
+        return None, "Veuillez corriger les erreurs suivantes :\n\n" + "\n".join(erreurs)
+    
     return pipeline(
         model, scaler, X_train_scaled, y_train,
         temperature, pluviometrie, azote,
@@ -28,6 +67,24 @@ def pipeline_wrapper(temperature, pluviometrie, azote,
 def pipeline_vache_wrapper(production, taux_tb, taux_tp,
                            temperature_v, ccs, bcs,
                            age_mois, lactation_j):
+    
+
+    erreurs = valider_champs(
+        obligatoires={
+            "Température (°C)"      : temperature_v,
+            "Production lait (L/j)" : production,
+            "TB (g/kg)"             : taux_tb,
+            "TP (g/kg)"             : taux_tp,
+            "CCS (k/mL)"            : ccs,
+            "BCS (1-5)"             : bcs,
+        },
+        strictement_positifs={
+            "Âge (mois)"        : age_mois,
+            "Lactation (jours)" : lactation_j,
+        }
+    )
+    if erreurs:
+        return None, "Veuillez corriger les erreurs suivantes :\n\n" + "\n".join(erreurs)
 
     return pipeline_vache(
         model_vache, scaler_vache,score_min, score_max,
@@ -163,7 +220,7 @@ Elle comporte deux modules : **prédiction de rendement céréalier** et **déte
 with gr.Blocks() as interface:
 
     gr.Markdown("# Plateforme agricole IA")
-    
+
     gr.HTML("""
         <div style="
             background-color: #fff8e1;
