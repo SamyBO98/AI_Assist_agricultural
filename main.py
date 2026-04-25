@@ -51,7 +51,7 @@ def train_model_culture():
     r2_cult  = r2_score(y_test, modele_rendement.predict(X_test_scaled))
     print(mae_cult)
     print(r2_cult)
-    return modele_rendement, scaler_c
+    return modele_rendement, scaler_c, mae_cult, r2_cult
 
 
 
@@ -69,7 +69,7 @@ def train_model_troupeau():
         n_estimators=200, contamination=0.08, random_state=42
     )
     modele_anomalie.fit(X_t_scaled)
-    return modele_anomalie,scaler_t
+    return modele_anomalie, scaler_t
 
 
 def predire_rendement(model, scaler, temperature, pluviometrie, azote, ph_sol, matiere_org, densite_semis, type_sol_nom):
@@ -77,6 +77,33 @@ def predire_rendement(model, scaler, temperature, pluviometrie, azote, ph_sol, m
     X_input = np.array([[temperature, pluviometrie, azote, ph_sol, matiere_org, densite_semis, sol_idx]])
     X_scaled = scaler.transform(X_input)
     rendement_pred = model.predict(X_scaled)[0]
-    return rendement_pred
+    # Comparaison avec cas "optimal" pour calculer les marges
+    X_opt = np.array([[14, 600, 180, 6.8, 2.8, 220, 0]])
+    rend_opt = model.predict(scaler.transform(X_opt))[0]
 
+    conseils = []
+    if azote < 120:
+        conseils.append(f"Azote faible ({azote:.0f} kg/ha) envisager un apport complémentaire")
+    elif azote > 220:
+        conseils.append(f"Azote excessif ({azote:.0f} kg/ha) risque de verse et pollution nitrique")
+    if ph_sol < 6.0:
+        conseils.append(f"pH acide ({ph_sol:.1f}) chaulage recommandé (objectif 6.5–7.0)")
+    if matiere_org < 1.5:
+        conseils.append("Matière organique très faible intégrer des couverts végétaux")
+    if pluviometrie < 400:
+        conseils.append("Faible pluviométrie explorer l'irrigation d'appoint")
+    if not conseils:
+        conseils.append("Paramètres globalement favorables maintenir les pratiques actuelles")
+
+    ecart = ((rendement_pred - 7.4) / 7.4) * 100
+    return rendement_pred, rend_opt, ecart, conseils
+
+
+def creer_graph(model, rendement_pred, rend_opt):
+    fig, axes = plt.subplots(1, 2, figsize=(11, 4.5))
+    
+
+
+if __name__ == '__main__':
+    model, scaler, mae, r2 = train_model_culture()
 
