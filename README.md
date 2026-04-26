@@ -20,6 +20,8 @@ Deux modules indépendants : **prédiction de rendement céréalier** et **déte
 - **Détection d'anomalies** : analyse le profil d'une vache laitière et détecte les situations à risque (mammite, fièvre, cétose...)
 - **Visualisations interactives** : graphiques d'importance des variables, comparaison aux références nationales, radar de santé, jauge de score
 - **Recommandations automatiques** : conseils agronomiques et alertes vétérinaires contextualisés
+- **Export PDF** : rapport d'analyse complet avec graphiques, indice de risque agronomique (Culture) et priorité d'intervention (Vache)
+- **Validation des inputs** : vérification des bornes physiques extrêmes pour chaque indicateur, avec message d'erreur contextuel
 - **Persistance des modèles** : les modèles sont sauvegardés au premier lancement et rechargés directement ensuite, pas de réentraînement inutile
 - **Scénarios de démonstration** : boutons Bon / Moyen / Mauvais pour tester l'application rapidement
 
@@ -29,7 +31,7 @@ Deux modules indépendants : **prédiction de rendement céréalier** et **déte
 AI_Assist_agricultural/
 │
 ├── app.py                      # Interface Gradio, point d'entrée
-├── config.py                   # Configuration globale (types de sol...)
+├── config.py                   # Configuration globale (types de sol, palette couleurs)
 ├── requirements.txt            # Dépendances Python
 │
 ├── data/
@@ -43,6 +45,9 @@ AI_Assist_agricultural/
 ├── services/
 │   ├── culture_service.py      # Logique métier culture (prédiction + conseils)
 │   └── vache_service.py        # Logique métier vache (analyse + alertes)
+│
+├── reports/
+│   └── pdf_report.py           # Génération des rapports PDF (reportlab)
 │
 └── viz/
     ├── culture_viz.py          # Graphiques culture
@@ -99,6 +104,8 @@ Régression supervisée pour prédire le rendement en t/ha.
 
 **Features :** température, pluviométrie, azote, pH sol, matière organique, densité semis, type de sol
 
+> Les importances par permutation sont précalculées à l'entraînement et sauvegardées dans le pkl — pas de recalcul à chaque prédiction.
+
 ### Vache - `IsolationForest`
 
 Détection non supervisée d'anomalies sur le profil d'une vache laitière.
@@ -115,40 +122,35 @@ Détection non supervisée d'anomalies sur le profil d'une vache laitière.
 
 ### Culture
 
-| Indicateur | Unité | Valeur typique |
-|---|---|---|
-| Température | °C | 12-18 °C |
-| Pluviométrie | mm/an | 400-700 mm |
-| Azote | kg N/ha | 120-200 kg/ha |
-| pH sol | - | 6.5-7.0 (idéal céréales) |
-| Matière organique | % | 1.5-4 % |
-| Densité semis | grains/m² | 180-260 |
+| Indicateur | Unité | Valeur typique | Bornes physiques |
+|---|---|---|---|
+| Température | °C | 12-18 °C | -15 à 50 °C |
+| Pluviométrie | mm/an | 400-700 mm | 0 à 12 000 mm |
+| Azote | kg N/ha | 120-200 kg/ha | 0 à 400 kg/ha |
+| pH sol | - | 6.5-7.0 (idéal céréales) | 2 à 11 |
+| Matière organique | % | 1.5-4 % | 0 à 100 % |
+| Densité semis | grains/m² | 180-260 | 1 à 600 |
 
 ### Vache laitière
 
-| Indicateur | Signification | Seuil d'alerte |
-|---|---|---|
-| **TB** (Taux Butyreux) | % matières grasses du lait | < 30 g/kg : acidose possible |
-| **TP** (Taux Protéique) | % protéines du lait | < 28 g/kg : déficit énergétique |
-| **CCS** (Cellules Somatiques) | Indicateur d'infection mammaire | > 200 k/mL : surveillance, > 400 k/mL : mammite |
-| **BCS** (Body Condition Score) | État d'engraissement (1-5) | < 2.0 : maigreur, > 4.0 : surpoids |
-| Température | Température corporelle | > 39.5 °C : fièvre |
+| Indicateur | Signification | Seuil d'alerte | Bornes physiques |
+|---|---|---|---|
+| **TB** (Taux Butyreux) | % matières grasses du lait | < 30 g/kg : acidose possible | 20 à 80 g/kg |
+| **TP** (Taux Protéique) | % protéines du lait | < 28 g/kg : déficit énergétique | 20 à 60 g/kg |
+| **CCS** (Cellules Somatiques) | Indicateur d'infection mammaire | > 200 k/mL : surveillance, > 400 k/mL : mammite | 10 à 10 000 k/mL |
+| **BCS** (Body Condition Score) | État d'engraissement (1-5) | < 2.0 : maigreur, > 4.0 : surpoids | 1 à 5 |
+| Température | Température corporelle | > 39.5 °C : fièvre | 35 à 42 °C |
 
 ## Limites connues
 
 - Les données d'entraînement sont **synthétiques** : le modèle illustre le fonctionnement mais ne reflète pas la réalité agronomique terrain
 - Pour un usage en production, réentraîner les modèles sur de vraies données (ex. [Agreste](https://agreste.agriculture.gouv.fr/), [BDNAGE](https://www.inst-elevage.asso.fr/))
-- Pas de gestion des valeurs manquantes côté UI (laisser un champ vide provoque une erreur)
+- L'indice de risque agronomique utilise une normalisation symétrique — en réalité les effets sont asymétriques (ex. excès d'azote ≠ manque d'azote)
 
 ## Pistes d'évolution
 
 - [ ] Intégration de données réelles open-data
-- [ ] Validation des champs dans l'UI (gestion des inputs vides)
-- [ ] Export PDF du rapport d'analyse
+- [ ] Module de détection de maladies foliaires par image (PlantVillage)
 - [ ] API REST pour intégration dans d'autres outils
 - [ ] Historique des analyses par exploitation
 
-## Licence
-
-Ce projet est distribué sous licence **MIT**.  
-Voir le fichier [LICENSE](LICENSE) pour plus de détails.
