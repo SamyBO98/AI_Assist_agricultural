@@ -146,7 +146,7 @@ Classification d'image par deep learning pour identifier 38 classes de maladies 
 | Paramètre | Valeur |
 |---|---|
 | Architecture | EfficientNetB0 (pré-entraîné ImageNet) |
-| Dataset | PlantVillage — 70 295 images train / 17 572 valid |
+| Dataset | PlantVillage contenant 70 295 images train / 17 572 valid |
 | Epochs | 25 (backbone gelé puis fine-tuning 5 dernières couches) |
 | Optimizer | Adam + CosineAnnealingLR |
 | Meilleure valid_acc | 99.9% |
