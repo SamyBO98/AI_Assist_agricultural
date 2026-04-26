@@ -38,7 +38,7 @@ FEUILLE_MODEL_PATH = "models/saved/feuille_model.pth"
 FEUILLE_CLASSES_PATH = "models/saved/feuille_classes.json"
 
 FEUILLE_BATCH_SIZE = 32
-FEUILLE_EPOCHS = 10
+FEUILLE_EPOCHS = 25
 FEUILLE_LR = 1e-3
 FEUILLE_IMG_SIZE = 224
 FEUILLE_DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")

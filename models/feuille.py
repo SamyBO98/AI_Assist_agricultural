@@ -6,9 +6,14 @@ from torch.utils.data import DataLoader
 from torchvision import datasets, transforms, models
 from torch.optim import Adam
 from torch.optim.lr_scheduler import CosineAnnealingLR
+from PIL import Image, ImageEnhance, ImageFilter
+from torch.amp import autocast, GradScaler
 import warnings
 warnings.filterwarnings("ignore")
  
+
+torch.backends.cudnn.benchmark = True
+
 from config import (
     FEUILLE_TRAIN_DIR, FEUILLE_VALID_DIR,
     FEUILLE_MODEL_PATH, FEUILLE_CLASSES_PATH,
@@ -27,8 +32,18 @@ def get_transforms():
     train_tf = transforms.Compose([
         transforms.Resize((IMG_SIZE, IMG_SIZE)),
         transforms.RandomHorizontalFlip(),
+        transforms.RandomVerticalFlip(p=0.1),
         transforms.RandomRotation(15),
-        transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2),
+        transforms.ColorJitter(brightness=0.3, contrast=0.3, saturation=0.3, hue=0.05),
+        # Simule flou de bougé / mise au point ratée (30% du temps)
+        transforms.RandomApply([
+            transforms.GaussianBlur(kernel_size=3, sigma=(0.1, 2.0))
+        ], p=0.3),
+        # Simule basse résolution de téléphone
+        transforms.RandomApply([
+            transforms.Resize((120, 120)),
+            transforms.Resize((IMG_SIZE, IMG_SIZE)),
+        ], p=0.1),
         transforms.ToTensor(),
         #Normlaisation avec les stats de ImageNet (moyenne et écart type)
         transforms.Normalize([0.485, 0.456, 0.406],
@@ -43,6 +58,15 @@ def get_transforms():
     return train_tf, valid_tf
  
  
+def preprocess_phone_photo(img: Image.Image) -> Image.Image:
+    #Améliore la netteté
+    img = img.filter(ImageFilter.SHARPEN)
+    #Booste légèrement le contraste
+    img = ImageEnhance.Contrast(img).enhance(1.1)
+    #Booste légèrement la saturation pour compenser les photos ternes
+    img = ImageEnhance.Color(img).enhance(1.05)
+    return img
+
 def build_model(num_classes: int) -> nn.Module:
     #Charge EfficientNetB0 pour transfert learning
     model = models.efficientnet_b0(weights=models.EfficientNet_B0_Weights.DEFAULT)
@@ -55,7 +79,7 @@ def build_model(num_classes: int) -> nn.Module:
         nn.Dropout(p=0.3), #drop 30% des neurones pendant l'entrainement pour évier sur entrainement
         nn.Linear(in_features, num_classes),
     )
-    return model.to(DEVICE)
+    return model.to(DEVICE).to(memory_format=torch.channels_last)
  
  
 def train_model_feuille():
@@ -66,8 +90,9 @@ def train_model_feuille():
     train_ds = datasets.ImageFolder(FEUILLE_TRAIN_DIR, transform=train_tf)
     valid_ds = datasets.ImageFolder(FEUILLE_VALID_DIR, transform=valid_tf)
     #Découpe données en mini batch + shuffle pour apprentissage
-    train_loader = DataLoader(train_ds, batch_size=BATCH_SIZE, shuffle=True,  num_workers=4, pin_memory=True)
-    valid_loader = DataLoader(valid_ds, batch_size=BATCH_SIZE, shuffle=False, num_workers=4, pin_memory=True)
+    pin_memory = (DEVICE.type == "cuda")
+    train_loader = DataLoader(train_ds, batch_size=BATCH_SIZE, shuffle=True,  num_workers=4, pin_memory=pin_memory)
+    valid_loader = DataLoader(valid_ds, batch_size=BATCH_SIZE, shuffle=False, num_workers=4, pin_memory=pin_memory)
     
     num_classes = len(train_ds.classes)
     #print(num_classes)
@@ -82,20 +107,38 @@ def train_model_feuille():
     scheduler = CosineAnnealingLR(optimizer, T_max=EPOCHS)
  
     best_acc = 0.0
+    patience = 7
+    counter  = 0
+    scaler = GradScaler(DEVICE.type)
+    FINE_TUNE_EPOCH = EPOCHS // 2 + 1
     
     for epoch in range(1, EPOCHS + 1):
+        # Phase 2 : fine-tuning à mi-parcours
+        if epoch == FINE_TUNE_EPOCH:
+            print("[feuille] Fine-tuning : dégel des 5 dernières couches du backbone")
+            for param in model.features[-5:].parameters():
+                param.requires_grad = True
+            optimizer = Adam([
+                {"params": model.classifier.parameters(), "lr": LR},
+                {"params": model.features[-5:].parameters(), "lr": LR / 10},
+            ])
+            scheduler = CosineAnnealingLR(optimizer, T_max=10)
+            counter = 0
         #Entraînement
         model.train()
         train_loss, train_correct = 0.0, 0
         #Loop on batch
         for images, labels in train_loader:
-            images, labels = images.to(DEVICE), labels.to(DEVICE)
-            optimizer.zero_grad()
+            images = images.to(DEVICE, memory_format=torch.channels_last)
+            labels = labels.to(DEVICE)
+            optimizer.zero_grad(set_to_none=True)
             #Make a prediction
-            outputs = model(images)
-            loss = criterion(outputs, labels)
-            loss.backward()
-            optimizer.step()
+            with autocast(device_type=DEVICE.type):
+                outputs = model(images)
+                loss = criterion(outputs, labels)
+            scaler.scale(loss).backward()
+            scaler.step(optimizer)
+            scaler.update()
             train_loss += loss.item() * images.size(0)
             #Compte combien d'images sont bien classés dans ce batch
             train_correct += (outputs.argmax(1) == labels).sum().item()
@@ -108,7 +151,8 @@ def train_model_feuille():
         #Inutile de stocker les gradients car on apprend pas 
         with torch.no_grad():
             for images, labels in valid_loader:
-                images, labels = images.to(DEVICE), labels.to(DEVICE)
+                images = images.to(DEVICE, memory_format=torch.channels_last)
+                labels = labels.to(DEVICE)
                 outputs = model(images)
                 loss = criterion(outputs, labels)
                 valid_loss += loss.item() * images.size(0)
@@ -120,15 +164,23 @@ def train_model_feuille():
               f"train_loss={train_loss/len(train_ds):.4f}  train_acc={train_acc:.1f}%  "
               f"valid_loss={valid_loss/len(valid_ds):.4f}  valid_acc={valid_acc:.1f}%")
  
+        # Sauvegarde meilleur modèle + early stopping
         if valid_acc > best_acc:
             best_acc = valid_acc
+            counter = 0
             os.makedirs(os.path.dirname(FEUILLE_MODEL_PATH), exist_ok=True)
             torch.save({
                 "model_state_dict": model.state_dict(),
                 "num_classes": num_classes,
                 "best_acc": best_acc,
             }, FEUILLE_MODEL_PATH)
-            print(f"Meilleur modèle sauvegardé (valid_acc={best_acc:.1f}%)")
+            print(f"  Meilleur modèle sauvegardé (valid_acc={best_acc:.1f}%)")
+        else:
+            counter += 1
+            print(f"  Pas d'amélioration ({counter}/{patience})")
+            if counter >= patience:
+                print(f"  Early stopping à l'epoch {epoch}")
+                break
  
     with open(FEUILLE_CLASSES_PATH, "w") as f:
         json.dump(train_ds.classes, f, ensure_ascii=False)
