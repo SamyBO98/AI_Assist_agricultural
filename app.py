@@ -12,7 +12,6 @@ from models.troupeau import load_or_train_troupeau
 from viz.vache_viz import pipeline_vache
 from reports.pdf_report import export_pdf_culture, export_pdf_vache, buf_to_tempfile
 from services.culture_service import predire_rendement
-from services.vache_service import analyser_vache
 
 
 model, scaler, mae, r2, importances= load_or_train_culture()
@@ -161,19 +160,13 @@ def pipeline_vache_wrapper(production, taux_tb, taux_tp,
     if erreurs:
         return None, "", bandeau_erreur(erreurs)
 
-    fig, texte = pipeline_vache(
+    fig, texte, alertes, prediction, score_sante = pipeline_vache(
         model_vache, scaler_vache, score_min, score_max,
         production, taux_tb, taux_tp,
         temperature_v, ccs, bcs,
         age_mois, lactation_j
     )
 
-    alertes, prediction, score_sante = analyser_vache(
-        model_vache, scaler_vache, score_min, score_max,
-        production, taux_tb, taux_tp,
-        temperature_v, ccs, bcs,
-        age_mois, lactation_j
-    )
     last_vache.update(dict(
         production=production, taux_tb=taux_tb, taux_tp=taux_tp,
         temperature_v=temperature_v, ccs=ccs, bcs=bcs,
@@ -383,7 +376,7 @@ with gr.Blocks() as interface:
                     err1  = gr.HTML()
                     out1  = gr.Plot()
                     out2  = gr.Textbox(label="Recommandations")
-                    pdf1  = gr.File(label="📄 Rapport PDF", visible=False)
+                    pdf1  = gr.File(label="-----Rapport PDF-----", visible=False)
                     btn_pdf1 = gr.Button("Exporter en PDF", variant="secondary", visible=False)
 
             clear_btn.click(
@@ -446,7 +439,7 @@ with gr.Blocks() as interface:
                     err_v    = gr.HTML()
                     out_v1   = gr.Plot()
                     out_v2   = gr.Textbox(label="Analyse")
-                    pdf_v    = gr.File(label="📄 Rapport PDF", visible=False)
+                    pdf_v    = gr.File(label="----Rapport PDF----", visible=False)
                     btn_pdf_v = gr.Button("Exporter en PDF", variant="secondary", visible=False)
 
             clear_btn.click(

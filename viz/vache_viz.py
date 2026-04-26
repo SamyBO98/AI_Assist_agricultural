@@ -109,4 +109,4 @@ def pipeline_vache(model, scaler, score_min, score_max,
         temperature_v, ccs, bcs
     )
 
-    return fig, texte
+    return fig, texte, alertes, prediction, score_sante

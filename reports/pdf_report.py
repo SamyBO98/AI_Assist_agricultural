@@ -499,7 +499,7 @@ def export_pdf_vache(
         for a in anomalie_reelle:
             story.append(Paragraph(f"{a}", styles["Alerte"]))
     else:
-        story.append(Paragraph("Aucune anomalie détectée — animal en bonne santé apparente.",
+        story.append(Paragraph("Aucune anomalie détectée animal en bonne santé apparente.",
                                styles["Conseil"]))
 
     pied_de_page(story, styles)
