@@ -32,10 +32,15 @@ AI_Assist_agricultural/
 │
 ├── app.py                      # Interface Gradio, point d'entrée
 ├── config.py                   # Configuration globale (types de sol, palette couleurs)
+├── database.py                 # Modèles SQLAlchemy + fonctions de persistance
 ├── requirements.txt            # Dépendances Python
+├── requirements-dev.txt        # Dépendances de développement (pytest)
 │
 ├── data/
 │   └── generate_data.py        # Génération des données d'entraînement
+│
+├── db/                         # Base de données SQLite (auto-générée, non versionnée)
+│   └── agricole.db
 │
 ├── models/
 │   ├── culture.py              # Entraînement / chargement modèle culture
@@ -48,6 +53,9 @@ AI_Assist_agricultural/
 │
 ├── reports/
 │   └── pdf_report.py           # Génération des rapports PDF (reportlab)
+│
+├── tests/
+│   └── test_db.py              # Tests de la base de données
 │
 └── viz/
     ├── culture_viz.py          # Graphiques culture
@@ -74,7 +82,11 @@ venv\Scripts\activate           # Windows
 ### 3. Installer les dépendances
 
 ```bash
+# Production
 pip install -r requirements.txt
+
+# Développement (inclut pytest)
+pip install -r requirements-dev.txt
 ```
 
 ### 4. Lancer l'application
@@ -140,6 +152,20 @@ Détection non supervisée d'anomalies sur le profil d'une vache laitière.
 | **CCS** (Cellules Somatiques) | Indicateur d'infection mammaire | > 200 k/mL : surveillance, > 400 k/mL : mammite | 10 à 10 000 k/mL |
 | **BCS** (Body Condition Score) | État d'engraissement (1-5) | < 2.0 : maigreur, > 4.0 : surpoids | 1 à 5 |
 | Température | Température corporelle | > 39.5 °C : fièvre | 35 à 42 °C |
+
+## Base de données
+
+Chaque export PDF déclenche une sauvegarde automatique de l'analyse dans une base SQLite locale (`db/agricole.db`), gérée via SQLAlchemy.
+
+Deux tables : `analyses_culture` et `analyses_vache`. Chaque ligne contient les paramètres saisis, les résultats (score, statut, conseils) et un timestamp UTC.
+
+La base est créée automatiquement au premier lancement, le dossier `db/` n'est pas versionné.
+
+Pour lancer les tests :
+
+```bash
+python -m pytest tests/ -v
+```
 
 ## Limites connues
 
