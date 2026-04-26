@@ -1,10 +1,11 @@
 from reportlab.lib import colors
+import torch
 
 SOLS = {0: "Limoneux", 1: "Argileux", 2: "Sableux", 3: "Calcaire"}
 SOL_IDX = {v: k for k, v in SOLS.items()}
 
 
-# Palette couleurs — utilisée dans pdf_report.py et viz/
+# Palette couleurs utilisée dans pdf_report.py et viz/
 PALETTE = {
     "vert"         : colors.HexColor("#2e7d32"),
     "vert_clair"   : colors.HexColor("#e8f5e9"),
@@ -28,3 +29,16 @@ PALETTE_HEX = {
     "bleu"         : "#1565c0",
     "gris"         : "#bdbdbd",
 }
+
+#Module Feuille
+FEUILLE_DATA_DIR = "data/plantvillage/New Plant Diseases Dataset(Augmented)/New Plant Diseases Dataset(Augmented)"
+FEUILLE_TRAIN_DIR = f"{FEUILLE_DATA_DIR}/train"
+FEUILLE_VALID_DIR = f"{FEUILLE_DATA_DIR}/valid"
+FEUILLE_MODEL_PATH = "models/saved/feuille_model.pth"
+FEUILLE_CLASSES_PATH = "models/saved/feuille_classes.json"
+
+FEUILLE_BATCH_SIZE = 32
+FEUILLE_EPOCHS = 10
+FEUILLE_LR = 1e-3
+FEUILLE_IMG_SIZE = 224
+FEUILLE_DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
