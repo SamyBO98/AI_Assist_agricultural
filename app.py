@@ -10,9 +10,14 @@ from config import SOLS
 
 from models.troupeau import load_or_train_troupeau
 from viz.vache_viz import pipeline_vache
-from reports.pdf_report import export_pdf_culture, export_pdf_vache, buf_to_tempfile
+from reports.pdf_report import (
+    export_pdf_culture, export_pdf_vache, buf_to_tempfile,
+    calcul_risque_agronomique, calcul_priorite,
+)
 from services.culture_service import predire_rendement
+from database import init_db, save_analyse_culture, save_analyse_vache
 
+init_db()
 
 model, scaler, mae, r2, importances= load_or_train_culture()
 model_vache, scaler_vache, score_min, score_max = load_or_train_troupeau()
@@ -124,11 +129,15 @@ def pipeline_wrapper(temperature, pluviometrie, azote,
         model, scaler, temperature, pluviometrie, azote,
         ph_sol, matiere_org, densite_semis, type_sol
     )
+    risque_score, risque_label, _ = calcul_risque_agronomique(
+        temperature, pluviometrie, azote, ph_sol, matiere_org, densite_semis
+    )
     last_culture.update(dict(
         temperature=temperature, pluviometrie=pluviometrie, azote=azote,
         ph_sol=ph_sol, matiere_org=matiere_org, densite_semis=densite_semis,
         type_sol=type_sol, rendement_pred=rend_pred, rend_opt=rend_opt,
-        ecart=ecart, conseils=conseils, importances=importances
+        ecart=ecart, conseils=conseils, importances=importances,
+        risque_score=risque_score, risque_label=risque_label,
     ))
     return fig, texte, ""
 
@@ -136,6 +145,7 @@ def pipeline_wrapper(temperature, pluviometrie, azote,
 def export_culture_pdf():
     if not last_culture:
         return None
+    save_analyse_culture(last_culture)
     buf = export_pdf_culture(**last_culture)
     return buf_to_tempfile(buf)
 
@@ -171,14 +181,25 @@ def pipeline_vache_wrapper(production, taux_tb, taux_tp,
         production=production, taux_tb=taux_tb, taux_tp=taux_tp,
         temperature_v=temperature_v, ccs=ccs, bcs=bcs,
         age_mois=age_mois, lactation_j=lactation_j,
-        alertes=alertes, prediction=prediction, score_sante=score_sante
+        alertes=alertes, prediction=prediction, score_sante=score_sante,
     ))
+    # Calcul statut fusionné (cohérent avec pdf_report)
+    label_p, _, _ = calcul_priorite(score_sante, ccs, temperature_v, bcs, production)
+    if prediction != 1 or label_p == "Intervention immédiate":
+        statut = "ANOMALIE DÉTECTÉE"
+    elif label_p == "Surveillance renforcée":
+        statut = "SURVEILLANCE RENFORCÉE"
+    else:
+        statut = "NORMAL"
+    last_vache["statut"]   = statut
+    last_vache["priorite"] = label_p
     return fig, texte, ""
 
 
 def export_vache_pdf():
     if not last_vache:
         return None
+    save_analyse_vache(last_vache)
     buf = export_pdf_vache(**last_vache)
     return buf_to_tempfile(buf)
 
@@ -376,7 +397,7 @@ with gr.Blocks() as interface:
                     err1  = gr.HTML()
                     out1  = gr.Plot()
                     out2  = gr.Textbox(label="Recommandations")
-                    pdf1  = gr.File(label="-----Rapport PDF-----", visible=False)
+                    pdf1  = gr.File(label="----Rapport PDF----", visible=False)
                     btn_pdf1 = gr.Button("Exporter en PDF", variant="secondary", visible=False)
 
             clear_btn.click(

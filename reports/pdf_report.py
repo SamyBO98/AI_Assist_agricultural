@@ -327,7 +327,8 @@ def fig_radar_vache(production, taux_tb, taux_tp, temperature_v, ccs, bcs):
 def export_pdf_culture(
     temperature, pluviometrie, azote, ph_sol,
     matiere_org, densite_semis, type_sol,
-    rendement_pred, rend_opt, ecart, conseils, importances
+    rendement_pred, rend_opt, ecart, conseils, importances,
+    risque_score=None, risque_label=None, **_
 ):
     styles = get_styles()
     buf = io.BytesIO()
@@ -420,7 +421,8 @@ def export_pdf_culture(
 def export_pdf_vache(
     production, taux_tb, taux_tp, temperature_v,
     ccs, bcs, age_mois, lactation_j,
-    alertes, prediction, score_sante
+    alertes, prediction, score_sante,
+    statut=None, priorite=None, **_
 ):
     styles = get_styles()
     buf = io.BytesIO()
@@ -506,7 +508,7 @@ def export_pdf_vache(
         for a in anomalie_reelle:
             story.append(Paragraph(f"{a}", styles["Alerte"]))
     else:
-        story.append(Paragraph("Aucune anomalie détectée — animal en bonne santé apparente.",
+        story.append(Paragraph("Aucune anomalie détectée : animal en bonne santé apparente.",
                                styles["Conseil"]))
 
     pied_de_page(story, styles)
