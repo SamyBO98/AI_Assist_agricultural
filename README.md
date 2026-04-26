@@ -104,7 +104,7 @@ Régression supervisée pour prédire le rendement en t/ha.
 
 **Features :** température, pluviométrie, azote, pH sol, matière organique, densité semis, type de sol
 
-> Les importances par permutation sont précalculées à l'entraînement et sauvegardées dans le pkl — pas de recalcul à chaque prédiction.
+> Les importances par permutation sont précalculées à l'entraînement et sauvegardées dans le pkl -> pas de recalcul à chaque prédiction.
 
 ### Vache - `IsolationForest`
 
@@ -144,8 +144,8 @@ Détection non supervisée d'anomalies sur le profil d'une vache laitière.
 ## Limites connues
 
 - Les données d'entraînement sont **synthétiques** : le modèle illustre le fonctionnement mais ne reflète pas la réalité agronomique terrain
-- Pour un usage en production, réentraîner les modèles sur de vraies données (ex. [Agreste](https://agreste.agriculture.gouv.fr/), [BDNAGE](https://www.inst-elevage.asso.fr/))
-- L'indice de risque agronomique utilise une normalisation symétrique — en réalité les effets sont asymétriques (ex. excès d'azote ≠ manque d'azote)
+- Pour un usage en production, réentraîner les modèles sur de vraies données (ex. [Agreste](https://agreste.agriculture.gouv.fr/))
+- L'indice de risque agronomique utilise une normalisation symétrique —> en réalité les effets sont asymétriques (ex. excès d'azote ≠ manque d'azote)
 
 ## Pistes d'évolution
 
