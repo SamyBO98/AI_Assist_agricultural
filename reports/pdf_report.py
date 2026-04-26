@@ -344,7 +344,7 @@ def export_pdf_culture(
 
     # En-tête
     entete(story, styles,
-           "🌾 Rapport d'analyse parcelle",
+           "Rapport d'analyse parcelle",
            f"Généré le {date_str}")
 
     # Badge risque
