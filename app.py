@@ -7,9 +7,12 @@ warnings.filterwarnings("ignore")
 from models.culture import load_or_train_culture
 from viz.culture_viz import pipeline
 from config import SOLS
- 
+
 from models.troupeau import load_or_train_troupeau
 from viz.vache_viz import pipeline_vache
+from reports.pdf_report import export_pdf_culture, export_pdf_vache, buf_to_tempfile
+from services.culture_service import predire_rendement
+from services.vache_service import analyser_vache
 
 
 model, scaler, mae, r2, importances= load_or_train_culture()
@@ -18,10 +21,9 @@ model_vache, scaler_vache, score_min, score_max = load_or_train_troupeau()
 
 
 
-# ──────────────────────────────────────────────
+
 # Bornes physiques extrêmes par champ
 # (min, max, unité, justification)
-# ──────────────────────────────────────────────
 BORNES_CULTURE = {
     "Température (°C)"      : (-15,  50,   "°C",      "de -15°C (gel extrême) à 50°C (record absolu au sol)"),
     "Pluviométrie (mm/an)"  : (  0,  12000,"mm/an",   "de 0 (sécheresse totale) à 12 000 mm (Meghalaya, Inde)"),
@@ -60,7 +62,7 @@ def valider_champs(valeurs, bornes):
             erreurs.append(li(f"{label} : champ obligatoire"))
         elif valeur < vmin or valeur > vmax:
             plage = f"{vmin}–{vmax} {unite}".strip()
-            erreurs.append(li(f"{label} : valeur hors limites physiques ({plage}) -> {justif}"))
+            erreurs.append(li(f"{label} : valeur hors limites physiques ({plage}) — {justif}"))
     return erreurs
 
 
@@ -85,6 +87,11 @@ def bandeau_erreur(erreurs):
             </ul>
         </div>
     """
+
+
+# Stockage du dernier résultat pour l'export PDF
+last_culture = {}
+last_vache   = {}
 
 
 def pipeline_wrapper(temperature, pluviometrie, azote,
@@ -113,7 +120,25 @@ def pipeline_wrapper(temperature, pluviometrie, azote,
         ph_sol, matiere_org, densite_semis,
         type_sol
     )
+
+    rend_pred, rend_opt, ecart, conseils = predire_rendement(
+        model, scaler, temperature, pluviometrie, azote,
+        ph_sol, matiere_org, densite_semis, type_sol
+    )
+    last_culture.update(dict(
+        temperature=temperature, pluviometrie=pluviometrie, azote=azote,
+        ph_sol=ph_sol, matiere_org=matiere_org, densite_semis=densite_semis,
+        type_sol=type_sol, rendement_pred=rend_pred, rend_opt=rend_opt,
+        ecart=ecart, conseils=conseils, importances=importances
+    ))
     return fig, texte, ""
+
+
+def export_culture_pdf():
+    if not last_culture:
+        return None
+    buf = export_pdf_culture(**last_culture)
+    return buf_to_tempfile(buf)
 
 
 def pipeline_vache_wrapper(production, taux_tb, taux_tp,
@@ -142,7 +167,29 @@ def pipeline_vache_wrapper(production, taux_tb, taux_tp,
         temperature_v, ccs, bcs,
         age_mois, lactation_j
     )
+
+    alertes, prediction, score_sante = analyser_vache(
+        model_vache, scaler_vache, score_min, score_max,
+        production, taux_tb, taux_tp,
+        temperature_v, ccs, bcs,
+        age_mois, lactation_j
+    )
+    last_vache.update(dict(
+        production=production, taux_tb=taux_tb, taux_tp=taux_tp,
+        temperature_v=temperature_v, ccs=ccs, bcs=bcs,
+        age_mois=age_mois, lactation_j=lactation_j,
+        alertes=alertes, prediction=prediction, score_sante=score_sante
+    ))
     return fig, texte, ""
+
+
+def export_vache_pdf():
+    if not last_vache:
+        return None
+    buf = export_pdf_vache(**last_vache)
+    return buf_to_tempfile(buf)
+
+
 
 
 
@@ -153,7 +200,7 @@ def scenario_bon():
     return 15, 600, 160, 6.7, 2.5, 210, "Limoneux"
 
 def scenario_moyen():
-    return 10, 200, 140, 6.2, 2.0, 200, "Argileux"
+    return 18, 200, 140, 6.0, 2.0, 200, "Argileux"
 
 def scenario_mauvais():
     return 35, 200, 300, 5.0, 0.8, 400, "Sableux"
@@ -179,7 +226,7 @@ def scenario_vache_moyen():
         20,     # production moyenne
         37,
         30,
-        40.0,   # légère hausse température
+        39,     # hausse température
         250,    # CCS moyen
         2.7,    # BCS un peu bas
         80,
@@ -331,11 +378,13 @@ with gr.Blocks() as interface:
                             outputs=[temp, pluie, azote, ph, org, densite, sol]
                         )
 
-                    btn = gr.Button("Prédire culture")
+                    btn = gr.Button("Prédire culture", variant="primary")
 
-                    err1 = gr.HTML()
-                    out1 = gr.Plot()
-                    out2 = gr.Textbox()
+                    err1  = gr.HTML()
+                    out1  = gr.Plot()
+                    out2  = gr.Textbox(label="Recommandations")
+                    pdf1  = gr.File(label="📄 Rapport PDF", visible=False)
+                    btn_pdf1 = gr.Button("Exporter en PDF", variant="secondary", visible=False)
 
             clear_btn.click(
                 fn=clear_inputs,
@@ -347,6 +396,16 @@ with gr.Blocks() as interface:
                 fn=pipeline_wrapper,
                 inputs=[temp, pluie, azote, ph, org, densite, sol],
                 outputs=[out1, out2, err1]
+            ).then(
+                fn=lambda fig, *_: (gr.update(visible=fig is not None), gr.update(visible=fig is not None)),
+                inputs=[out1],
+                outputs=[btn_pdf1, pdf1]
+            )
+
+            btn_pdf1.click(
+                fn=export_culture_pdf,
+                inputs=[],
+                outputs=[pdf1]
             )
 
         # ===================== VACHE =====================
@@ -382,11 +441,13 @@ with gr.Blocks() as interface:
                             scenario_vache_mauvais,
                             outputs=[production, tb, tp, temp_v, ccs, bcs, age, lactation]
                         )
-                    btn_v = gr.Button("Analyser vache")
+                    btn_v = gr.Button("Analyser vache", variant="primary")
 
-                    err_v = gr.HTML()
-                    out_v1 = gr.Plot()
-                    out_v2 = gr.Textbox()
+                    err_v    = gr.HTML()
+                    out_v1   = gr.Plot()
+                    out_v2   = gr.Textbox(label="Analyse")
+                    pdf_v    = gr.File(label="📄 Rapport PDF", visible=False)
+                    btn_pdf_v = gr.Button("Exporter en PDF", variant="secondary", visible=False)
 
             clear_btn.click(
                 fn=clear_inputs_vache,
@@ -397,6 +458,16 @@ with gr.Blocks() as interface:
                 fn=pipeline_vache_wrapper,
                 inputs=[production, tb, tp, temp_v, ccs, bcs, age, lactation],
                 outputs=[out_v1, out_v2, err_v]
+            ).then(
+                fn=lambda fig, *_: (gr.update(visible=fig is not None), gr.update(visible=fig is not None)),
+                inputs=[out_v1],
+                outputs=[btn_pdf_v, pdf_v]
+            )
+
+            btn_pdf_v.click(
+                fn=export_vache_pdf,
+                inputs=[],
+                outputs=[pdf_v]
             )
 
         with gr.Tab("À propos"):
