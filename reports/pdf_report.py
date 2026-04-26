@@ -357,12 +357,12 @@ def export_pdf_culture(
     story.append(Paragraph("Résultats", styles["Section"]))
     ecart_str = f"+{ecart:.1f}%" if ecart >= 0 else f"{ecart:.1f}%"
     resultats = [
-        ["Rendement estimé",         f"{rendement_pred:.2f} t/ha", ""],
-        ["Rendement optimum modèle", f"{rend_opt:.2f} t/ha",       ""],
-        ["Moyenne nationale (blé)",  "7.40 t/ha",                  ""],
-        ["Écart vs moyenne FR",      ecart_str,                    ""],
+        ["Rendement estimé",         f"{rendement_pred:.2f} t/ha"],
+        ["Rendement optimum modèle", f"{rend_opt:.2f} t/ha"],
+        ["Moyenne nationale (blé)",  "7.40 t/ha"],
+        ["Écart vs moyenne FR",      ecart_str],
     ]
-    t = Table(resultats, colWidths=[100*mm, 40*mm, 30*mm])
+    t = Table(resultats, colWidths=[100*mm, 70*mm])
     t.setStyle(TableStyle([
         ("FONTNAME",      (0,0), (0,-1),  "Helvetica-Bold"),
         ("FONTSIZE",      (0,0), (-1,-1), 10),
@@ -446,16 +446,23 @@ def export_pdf_vache(
     story.append(badge_priorite(label_p, couleur_p, bg_p))
     story.append(Spacer(1, 10))
 
-    # Score santé + statut
+    # Score santé + statut fusionné (pire signal entre modèle IA et règles métier)
     story.append(Paragraph("Résultats", styles["Section"]))
-    statut      = "NORMAL" if prediction == 1 else "ANOMALIE DÉTECTÉE"
-    coul_statut = VERT if prediction == 1 else ROUGE
+    if prediction != 1 or label_p == "Intervention immédiate":
+        statut      = "ANOMALIE DÉTECTÉE"
+        coul_statut = ROUGE
+    elif label_p == "Surveillance renforcée":
+        statut      = "SURVEILLANCE RENFORCÉE"
+        coul_statut = ORANGE
+    else:
+        statut      = "NORMAL"
+        coul_statut = VERT
 
     resultats = [
-        ["Score de santé IA",  f"{score_sante}/100", ""],
-        ["Statut",             statut,               ""],
+        ["Score de santé IA",  f"{score_sante}/100"],
+        ["Statut",             statut],
     ]
-    t = Table(resultats, colWidths=[100*mm, 50*mm, 20*mm])
+    t = Table(resultats, colWidths=[100*mm, 70*mm])
     t.setStyle(TableStyle([
         ("FONTNAME",      (0,0), (0,-1),  "Helvetica-Bold"),
         ("FONTSIZE",      (0,0), (-1,-1), 10),
@@ -499,7 +506,7 @@ def export_pdf_vache(
         for a in anomalie_reelle:
             story.append(Paragraph(f"{a}", styles["Alerte"]))
     else:
-        story.append(Paragraph("Aucune anomalie détectée animal en bonne santé apparente.",
+        story.append(Paragraph("Aucune anomalie détectée — animal en bonne santé apparente.",
                                styles["Conseil"]))
 
     pied_de_page(story, styles)
