@@ -6,7 +6,12 @@ __pycache__/
 models/saved/
 *.pkl
 
-venv/
-
+# Base de données locale
 db/
 *.db
+
+# Dataset PlantVillage
+data/plantvillage/
+*.zip
+
+venv/
