@@ -25,29 +25,69 @@ model, scaler, mae, r2, importances= load_or_train_culture()
 model_vache, scaler_vache, score_min, score_max = load_or_train_troupeau()
 
 
-
-
-
 # Bornes physiques extrêmes par champ
 # (min, max, unité, justification)
+
 BORNES_CULTURE = {
-    "Température (°C)"      : (-15,  50,   "°C",      "de -15°C (gel extrême) à 50°C (record absolu au sol)"),
-    "Pluviométrie (mm/an)"  : (  0,  12000,"mm/an",   "de 0 (sécheresse totale) à 12 000 mm (Meghalaya, Inde)"),
-    "Azote (kg N/ha)"       : (  0,  400,  "kg N/ha", "de 0 (zéro intrant) à 400 kg/ha (au-delà = toxique)"),
-    "pH sol"                : (  2,  11,   "",         "de 2.0 (sol volcanique acide) à 11.0 (sol sodique)"),
-    "Matière organique (%)" : (  0,  100,  "%",        "de 0% (sable pur) à 100% (tourbe pure)"),
-    "Densité semis (gr/m²)" : (  1,  600,  "gr/m²",   "de 1 grain/m² à 600 gr/m² (au-delà = étouffement)"),
+    "Température (°C)": (
+        -15, 50, "°C",
+        "de -15°C (gel extrême) à 50°C (record absolu au sol)"
+    ),
+    "Pluviométrie (mm/an)": (
+        0, 12000, "mm/an",
+        "de 0 (sécheresse totale) à 12 000 mm (Meghalaya, Inde)"
+    ),
+    "Azote (kg N/ha)": (
+        0, 400, "kg N/ha",
+        "de 0 (zéro intrant) à 400 kg/ha (au-delà = toxique)"
+    ),
+    "pH sol": (
+        2, 11, "",
+        "de 2.0 (sol volcanique acide) à 11.0 (sol sodique)"
+    ),
+    "Matière organique (%)": (
+        0, 100, "%",
+        "de 0% (sable pur) à 100% (tourbe pure)"
+    ),
+    "Densité semis (gr/m²)": (
+        1, 600, "gr/m²",
+        "de 1 grain/m² à 600 gr/m² (au-delà = étouffement)"
+    ),
 }
 
 BORNES_VACHE = {
-    "Production lait (L/j)" : (  0,   90,  "L/j",   "de 0 (vache tarie) à 90 L/j (record mondial Holstein)"),
-    "TB (g/kg)"             : ( 20,   80,  "g/kg",  "de 20 g/kg (pathologique) à 80 g/kg (race à viande)"),
-    "TP (g/kg)"             : ( 20,   60,  "g/kg",  "de 20 g/kg (pathologique) à 60 g/kg (extrême)"),
-    "Température (°C)"      : ( 35,   42,  "°C",    "de 35°C (hypothermie sévère) à 42°C (hyperthermie létale)"),
-    "CCS (k/mL)"            : ( 10, 10000, "k/mL",  "de 10 k/mL (minimum analytique) à 10 000 k/mL (mammite aiguë)"),
-    "BCS (1–5)"             : (  1,    5,  "",      "de 1.0 (cachexie) à 5.0 (obésité maximale)"),
-    "Âge (mois)"            : ( 12,  240,  "mois",  "de 12 mois (génisse primipare) à 240 mois (20 ans)"),
-    "Lactation (jours)"     : (  1,  500,  "jours", "de 1 jour à 500 jours (lactation prolongée)"),
+    "Production lait (L/j)": (
+        0, 90, "L/j",
+        "de 0 (vache tarie) à 90 L/j (record mondial Holstein)"
+    ),
+    "TB (g/kg)": (
+        20, 80, "g/kg",
+        "de 20 g/kg (pathologique) à 80 g/kg (race à viande)"
+    ),
+    "TP (g/kg)": (
+        20, 60, "g/kg",
+        "de 20 g/kg (pathologique) à 60 g/kg (extrême)"
+    ),
+    "Température (°C)": (
+        35, 42, "°C",
+        "de 35°C (hypothermie sévère) à 42°C (hyperthermie létale)"
+    ),
+    "CCS (k/mL)": (
+        10, 10000, "k/mL",
+        "de 10 k/mL (minimum analytique) à 10 000 k/mL (mammite aiguë)"
+    ),
+    "BCS (1–5)": (
+        1, 5, "",
+        "de 1.0 (cachexie) à 5.0 (obésité maximale)"
+    ),
+    "Âge (mois)": (
+        12, 240, "mois",
+        "de 12 mois (génisse primipare) à 240 mois (20 ans)"
+    ),
+    "Lactation (jours)": (
+        1, 500, "jours",
+        "de 1 jour à 500 jours (lactation prolongée)"
+    ),
 }
 
 
@@ -218,10 +258,6 @@ def pipeline_feuille_wrapper(image):
     save_analyse_feuille(resultat)
     fig, texte = pipeline_feuille(pil_image, resultat)
     return fig, texte, ""
-
-
-
-
 
 
 
