@@ -3,15 +3,18 @@ API REST — AI Assist Agricultural
 Endpoints : /culture  /vache  /feuille
 """
 
-import io
 import warnings
 
-warnings.filterwarnings("ignore")
+warnings.filterwarnings("ignore", category=UserWarning)
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
-from database import init_db
+from database import init_db, save_analyse_culture
+from services.culture_service import predire_rendement
+from reports.pdf_report import calcul_risque_agronomique
+from contextlib import asynccontextmanager
+
 
 init_db()
 
@@ -19,14 +22,26 @@ from models.culture import load_or_train_culture
 from models.troupeau import load_or_train_troupeau
 from pydantic import BaseModel, Field
 
+model_culture = scaler_culture = None
+model_vache = scaler_vache = score_min = score_max = None
 
-model_culture, scaler_culture, _, _, _ = load_or_train_culture()
-model_vache, scaler_vache, score_min, score_max = load_or_train_troupeau()
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    global model_culture, scaler_culture
+    global model_vache, scaler_vache, score_min, score_max
+
+    model_culture, scaler_culture, _, _, _ = load_or_train_culture()
+    model_vache, scaler_vache, score_min, score_max = load_or_train_troupeau()
+
+    yield
+
 
 app = FastAPI(
     title="AI Assist Agricultural",
     description="API de prédiction agricole : Culture, Vache laitière, Maladie foliaire",
     version="1.0.0",
+    lifespan=lifespan,
 )
 
 app.add_middleware(
@@ -62,3 +77,55 @@ class VacheInput(BaseModel):
     lactation_j: float = Field(
         ..., ge=1, le=500, description="Stade de lactation (jours)"
     )
+
+
+@app.get("/", tags=["Santé"])
+def root():
+    return {"status": "ok", "modules": ["/culture", "/vache", "/feuille"]}
+
+
+@app.post("/culture", tags=["Culture"])
+def analyse_culture(data: CultureInput):
+    try:
+        rendement_pred, rend_opt, ecart, conseils = predire_rendement(
+            model_culture,
+            scaler_culture,
+            data.temperature,
+            data.pluviometrie,
+            data.azote,
+            data.ph_sol,
+            data.matiere_org,
+            data.densite_semis,
+            data.type_sol,
+        )
+
+        risque_score, risque_label, _, _ = calcul_risque_agronomique(
+            data.temperature,
+            data.pluviometrie,
+            data.azote,
+            data.ph_sol,
+            data.matiere_org,
+            data.densite_semis,
+        )
+
+        row = {
+            "temperature": data.temperature,
+            "pluviometrie": data.pluviometrie,
+            "azote": data.azote,
+            "ph_sol": data.ph_sol,
+            "matiere_org": data.matiere_org,
+            "densite_semis": data.densite_semis,
+            "type_sol": data.type_sol,
+            "rendement_pred": round(rendement_pred, 2),
+            "rend_opt": round(rend_opt, 2),
+            "ecart": round(ecart, 2),
+            "risque_score": risque_score,
+            "risque_label": risque_label,
+            "conseils": conseils,
+        }
+
+        row["id"] = save_analyse_culture(row)
+        return row
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
