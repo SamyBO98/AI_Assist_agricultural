@@ -3,13 +3,15 @@ import torch
 import torch.nn.functional as F
 from torchvision import transforms
 from PIL import Image
- 
+
 from config import (
-    FEUILLE_MODEL_PATH, FEUILLE_CLASSES_PATH,
-    FEUILLE_IMG_SIZE, FEUILLE_DEVICE,
+    FEUILLE_MODEL_PATH,
+    FEUILLE_CLASSES_PATH,
+    FEUILLE_IMG_SIZE,
+    FEUILLE_DEVICE,
 )
 from models.feuille import build_model
- 
+
 DEVICE = FEUILLE_DEVICE
 
 
@@ -55,5 +57,70 @@ CLASS_LABELS = {
     "Tomato___healthy": ("Tomate", "Sain"),
 }
 
+from functools import lru_cache
 
 
+@lru_cache(maxsize=1)
+def _load_model():
+    with open(FEUILLE_CLASSES_PATH) as f:
+        classes = json.load(f)
+    checkpoint = torch.load(FEUILLE_MODEL_PATH, map_location=DEVICE, weights_only=True)
+    model = build_model(len(classes))
+    model.load_state_dict(checkpoint["model_state_dict"])
+    model.eval()
+    return model, classes
+
+
+_TRANSFORM = transforms.Compose([
+    transforms.Resize((FEUILLE_IMG_SIZE, FEUILLE_IMG_SIZE)),
+    transforms.ToTensor(),
+    transforms.Normalize([0.485, 0.456, 0.406],
+                         [0.229, 0.224, 0.225]),
+])
+ 
+ 
+def _preprocess(image: Image.Image) -> torch.Tensor:
+    return _TRANSFORM(image.convert("RGB")).unsqueeze(0).to(DEVICE)
+
+def analyser_feuille(image: Image.Image, top_k: int = 3) -> dict:
+    """
+    Analyse une image de feuille et retourne la prédiction principale + top-k.
+
+    Retourne un dict :
+        plante: str
+        etat: str
+        confiance: float (0-100)
+        sain: bool
+        top_k: list of dict
+    """
+    model, classes = _load_model()
+
+    tensor = _preprocess(image)
+
+    with torch.no_grad():
+        logits = model(tensor)
+        probs = F.softmax(logits, dim=1)[0]
+
+    top_indices = probs.argsort(descending=True)[:top_k].tolist()
+
+    top_resultats = []
+    for idx in top_indices:
+        classe = classes[idx]
+        plante, etat = CLASS_LABELS.get(classe, (classe, "Inconnu"))
+
+        top_resultats.append({
+            "classe": classe,
+            "plante": plante,
+            "etat": etat,
+            "confiance": round(probs[idx].item() * 100, 2),
+        })
+
+    meilleur = top_resultats[0]
+
+    return {
+        "plante": meilleur["plante"],
+        "etat": meilleur["etat"],
+        "confiance": meilleur["confiance"],
+        "sain": meilleur["etat"] == "Sain",
+        "top_k": top_resultats,
+    }
