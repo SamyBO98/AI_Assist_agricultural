@@ -157,7 +157,7 @@ async def analyse_culture(data: CultureInput, request: Request):
 
 
 @app.post("/vache", tags=["Vache"])
-def analyse_vache(data: VacheInput, request: Request):
+async def analyse_vache(data: VacheInput, request: Request):
     logger.info(
         "event=vache_analysis status=start production=%.1f ccs=%.0f",
         data.production,
