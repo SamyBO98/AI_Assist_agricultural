@@ -15,6 +15,8 @@ from reports.pdf_report import (
     calcul_risque_agronomique, calcul_priorite,
 )
 from services.culture_service import predire_rendement
+from services.feuille_service import analyser_feuille
+from viz.feuille_viz import pipeline_feuille
 from database import init_db, save_analyse_culture, save_analyse_vache
 
 init_db()
@@ -202,6 +204,19 @@ def export_vache_pdf():
     save_analyse_vache(last_vache)
     buf = export_pdf_vache(**last_vache)
     return buf_to_tempfile(buf)
+
+
+def pipeline_feuille_wrapper(image):
+    if image is None:
+        return None, "", "<p style='color:orange'>Veuillez uploader une image.</p>"
+    from PIL import Image as PILImage
+    import numpy as np
+    pil_image = PILImage.fromarray(np.array(image)).convert("RGB")
+    resultat  = analyser_feuille(pil_image)
+    if not resultat.get("success"):
+        return None, "", f"<p style='color:red'>{resultat.get('error', 'Erreur inconnue')}</p>"
+    fig, texte = pipeline_feuille(pil_image, resultat)
+    return fig, texte, ""
 
 
 
@@ -483,6 +498,27 @@ with gr.Blocks() as interface:
                 inputs=[],
                 outputs=[pdf_v]
             )
+        
+        # ===================== Feuille =====================
+        with gr.Tab("Feuille"):
+            with gr.Row():
+                with gr.Column(scale=1):
+                    image_input = gr.Image(
+                        label="Photo de feuille",
+                        type="numpy",
+                        sources=["upload", "clipboard"],
+                    )
+                    btn_f = gr.Button("Analyser", variant="primary")
+                with gr.Column(scale=2):
+                    err_f   = gr.HTML()
+                    out_f1  = gr.Plot(label="Résultat")
+                    out_f2  = gr.Textbox(label="Résumé", lines=4)
+            btn_f.click(
+                fn=pipeline_feuille_wrapper,
+                inputs=[image_input],
+                outputs=[out_f1, out_f2, err_f]
+            )
+
 
         with gr.Tab("À propos"):
             gr.Markdown(APROPOS_MD)
