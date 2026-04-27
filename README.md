@@ -19,7 +19,7 @@ Trois modules indépendants : **prédiction de rendement céréalier**, **détec
 
 - **Prédiction de rendement** : estime le rendement en t/ha à partir de paramètres agronomiques (température, pluviométrie, azote, pH, matière organique, densité de semis, type de sol)
 - **Détection d'anomalies** : analyse le profil d'une vache laitière et détecte les situations à risque (mammite, fièvre, cétose...)
-- **Détection de maladies foliaires** : classification d'une photo de feuille parmi 38 classes (plante saine ou maladie identifiée) — intégration UI en cours
+- **Détection de maladies foliaires** : classification d'une photo de feuille parmi 38 classes (plante saine ou maladie identifiée)
 - **Visualisations interactives** : graphiques d'importance des variables, comparaison aux références nationales, radar de santé, jauge de score
 - **Recommandations automatiques** : conseils agronomiques et alertes vétérinaires contextualisés
 - **Export PDF** : rapport d'analyse complet avec graphiques, indice de risque agronomique (Culture) et priorité d'intervention (Vache)
@@ -53,7 +53,7 @@ AI_Assist_agricultural/
 |
 +-- services/
 |   +-- culture_service.py      # Logique métier culture (prédiction + conseils)
-|   +-- feuille_service.py      # Logique métier feuille (inférence + top-3) — en cours
+|   +-- feuille_service.py      # Logique métier feuille (inférence + top-3)
 |   +-- vache_service.py        # Logique métier vache (analyse + alertes)
 |
 +-- reports/
@@ -64,7 +64,7 @@ AI_Assist_agricultural/
 |
 +-- viz/
     +-- culture_viz.py          # Graphiques culture
-    +-- feuille_viz.py          # Graphiques feuille (top-3 confiance) — en cours
+    +-- feuille_viz.py          # Graphiques feuille (top-3 confiance)
     +-- vache_viz.py            # Graphiques vache
 ```
 
@@ -146,7 +146,7 @@ Classification d'image par deep learning pour identifier 38 classes de maladies 
 | Paramètre | Valeur |
 |---|---|
 | Architecture | EfficientNetB0 (pré-entraîné ImageNet) |
-| Dataset | PlantVillage contenant 70 295 images train / 17 572 valid |
+| Dataset | PlantVillage — 70 295 images train / 17 572 valid |
 | Epochs | 25 (backbone gelé puis fine-tuning 5 dernières couches) |
 | Optimizer | Adam + CosineAnnealingLR |
 | Meilleure valid_acc | 99.9% |
@@ -243,6 +243,6 @@ python -m pytest tests/ -v
 ## Pistes d'évolution
 
 - [ ] Intégration de données réelles open-data (culture/vache)
-- [x] Module de détection de maladies foliaires par image (PlantVillage) — modèle entraîné, intégration UI en cours
+- [x] Module de détection de maladies foliaires par image (PlantVillage) : intégré
 - [ ] API REST pour intégration dans d'autres outils
 - [ ] Historique des analyses par exploitation
