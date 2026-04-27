@@ -3,11 +3,19 @@ Tests basiques pour vérifier le bon fonctionnement de la base de données.
 Lancer depuis la racine du projet : python -m pytest tests/ -v
 ou directement                    : python tests/test_db.py
 """
+
 import sys
 import os
+
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from database import init_db, save_analyse_culture, save_analyse_vache, save_analyse_feuille, engine
+from database import (
+    init_db,
+    save_analyse_culture,
+    save_analyse_vache,
+    save_analyse_feuille,
+    engine,
+)
 from database import AnalyseCulture, AnalyseVache, AnalyseFeuille
 from database import SessionLocal
 
@@ -15,11 +23,19 @@ from database import SessionLocal
 def test_save_culture():
     init_db()
     data = dict(
-        temperature=15.0, pluviometrie=600.0, azote=160.0,
-        ph_sol=6.7, matiere_org=2.5, densite_semis=210.0,
-        type_sol="Limoneux", rendement_pred=8.2, rend_opt=9.1,
-        ecart=10.8, conseils=["Paramètres globalement favorables"],
-        risque_score=18, risque_label="Faible",
+        temperature=15.0,
+        pluviometrie=600.0,
+        azote=160.0,
+        ph_sol=6.7,
+        matiere_org=2.5,
+        densite_semis=210.0,
+        type_sol="Limoneux",
+        rendement_pred=8.2,
+        rend_opt=9.1,
+        ecart=10.8,
+        conseils=["Paramètres globalement favorables"],
+        risque_score=18,
+        risque_label="Faible",
     )
     row_id = save_analyse_culture(data)
     assert isinstance(row_id, int) and row_id > 0
@@ -36,11 +52,18 @@ def test_save_culture():
 def test_save_vache():
     init_db()
     data = dict(
-        production=28.0, taux_tb=40.0, taux_tp=33.0,
-        temperature_v=38.3, ccs=80.0, bcs=3.0,
-        age_mois=60.0, lactation_j=120.0,
-        score_sante=85, prediction=1,
-        statut="NORMAL", priorite="Suivi normal",
+        production=28.0,
+        taux_tb=40.0,
+        taux_tp=33.0,
+        temperature_v=38.3,
+        ccs=80.0,
+        bcs=3.0,
+        age_mois=60.0,
+        lactation_j=120.0,
+        score_sante=85,
+        prediction=1,
+        statut="NORMAL",
+        priorite="Suivi normal",
         alertes=["Aucune anomalie détectée"],
     )
     row_id = save_analyse_vache(data)
@@ -54,6 +77,7 @@ def test_save_vache():
         assert row.created_at is not None
     print(f"[vache]   OK — id={row_id}")
 
+
 def test_save_feuille():
     init_db()
     data = dict(
@@ -62,14 +86,29 @@ def test_save_feuille():
         confiance=97.3,
         sain=False,
         top_k=[
-            {"classe": "Tomato___Late_blight", "plante": "Tomate", "etat": "Mildiou",   "confiance": 97.3},
-            {"classe": "Tomato___Early_blight","plante": "Tomate", "etat": "Alternariose précoce", "confiance": 1.8},
-            {"classe": "Tomato___healthy",     "plante": "Tomate", "etat": "Sain",       "confiance": 0.5},
+            {
+                "classe": "Tomato___Late_blight",
+                "plante": "Tomate",
+                "etat": "Mildiou",
+                "confiance": 97.3,
+            },
+            {
+                "classe": "Tomato___Early_blight",
+                "plante": "Tomate",
+                "etat": "Alternariose précoce",
+                "confiance": 1.8,
+            },
+            {
+                "classe": "Tomato___healthy",
+                "plante": "Tomate",
+                "etat": "Sain",
+                "confiance": 0.5,
+            },
         ],
     )
     row_id = save_analyse_feuille(data)
     assert isinstance(row_id, int) and row_id > 0
- 
+
     with SessionLocal() as session:
         row = session.get(AnalyseFeuille, row_id)
         assert row is not None
@@ -85,11 +124,13 @@ def test_lecture_toutes_lignes():
     init_db()
     with SessionLocal() as session:
         cultures = session.query(AnalyseCulture).all()
-        vaches   = session.query(AnalyseVache).all()
+        vaches = session.query(AnalyseVache).all()
         feuilles = session.query(AnalyseFeuille).all()
-    print(f"[lecture] {len(cultures)} culture(s), {len(vaches)} vache(s), {len(feuilles)} feuille(s) en base")
+    print(
+        f"[lecture] {len(cultures)} culture(s), {len(vaches)} vache(s), {len(feuilles)} feuille(s) en base"
+    )
     assert len(cultures) >= 1
-    assert len(vaches)   >= 1
+    assert len(vaches) >= 1
     assert len(feuilles) >= 1
 
 

@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 from services.culture_service import predire_rendement
 from sklearn.inspection import permutation_importance
 import warnings
+
 warnings.filterwarnings("ignore")
 
 
@@ -11,10 +12,7 @@ def creer_graphs(importances, rendement_pred, rend_opt):
     for ax in axes:
         ax.set_facecolor("#16213e")
 
-    labels = [
-        "Temp.", "Pluie", "Azote",
-        "pH sol", "Mat. org.", "Densité", "Type sol"
-    ]
+    labels = ["Temp.", "Pluie", "Azote", "pH sol", "Mat. org.", "Densité", "Type sol"]
 
     colors = [
         "#4CAF50" if i == np.argmax(importances) else "#81C784"
@@ -32,7 +30,7 @@ def creer_graphs(importances, rendement_pred, rend_opt):
             f"{val:.1f}%",
             va="center",
             color="#ccc",
-            fontsize=8
+            fontsize=8,
         )
 
     categories = ["Votre rendement", "Optimum", "Moyenne FR"]
@@ -55,24 +53,44 @@ def creer_graphs(importances, rendement_pred, rend_opt):
             f"{val:.1f}",
             ha="center",
             color="white",
-            fontweight="bold"
+            fontweight="bold",
         )
 
     plt.tight_layout()
     return fig
 
 
-def pipeline(model, scaler, importances, temperature, pluviometrie, azote, ph_sol, matiere_org, densite_semis, type_sol):
+def pipeline(
+    model,
+    scaler,
+    importances,
+    temperature,
+    pluviometrie,
+    azote,
+    ph_sol,
+    matiere_org,
+    densite_semis,
+    type_sol,
+):
 
-    rend_pred, rend_opt, ecart, conseils = predire_rendement(model, scaler, temperature, pluviometrie, azote, ph_sol, matiere_org, densite_semis, type_sol)
+    rend_pred, rend_opt, ecart, conseils = predire_rendement(
+        model,
+        scaler,
+        temperature,
+        pluviometrie,
+        azote,
+        ph_sol,
+        matiere_org,
+        densite_semis,
+        type_sol,
+    )
 
     fig = creer_graphs(importances, rend_pred, rend_opt)
 
     texte = (
         f"Rendement estimé : {rend_pred:.2f} t/ha\n"
         f"Écart : {ecart:+.1f}%\n\n"
-        "Recommandations :\n"
-        + "\n".join("- " + c for c in conseils)
+        "Recommandations :\n" + "\n".join("- " + c for c in conseils)
     )
 
     return fig, texte

@@ -53,7 +53,10 @@ CLASS_LABELS = {
     "Tomato___Late_blight": ("Tomate", "Mildiou"),
     "Tomato___Leaf_Mold": ("Tomate", "Moisissure foliaire"),
     "Tomato___Septoria_leaf_spot": ("Tomate", "Septoriose"),
-    "Tomato___Spider_mites Two-spotted_spider_mite": ("Tomate", "Acariens (tétranyques)"),
+    "Tomato___Spider_mites Two-spotted_spider_mite": (
+        "Tomate",
+        "Acariens (tétranyques)",
+    ),
     "Tomato___Target_Spot": ("Tomate", "Tache cible"),
     "Tomato___Tomato_Yellow_Leaf_Curl_Virus": ("Tomate", "Virus enroulement jaune"),
     "Tomato___Tomato_mosaic_virus": ("Tomate", "Virus mosaïque"),
@@ -68,9 +71,11 @@ def _load_model():
     try:
         with open(FEUILLE_CLASSES_PATH) as f:
             classes = json.load(f)
-        checkpoint = torch.load(FEUILLE_MODEL_PATH, map_location=DEVICE, weights_only=True)
-        model = build_model(len(classes)) # build_model gère le .to(DEVICE)
-        model.load_state_dict(checkpoint["model_state_dict"]) 
+        checkpoint = torch.load(
+            FEUILLE_MODEL_PATH, map_location=DEVICE, weights_only=True
+        )
+        model = build_model(len(classes))  # build_model gère le .to(DEVICE)
+        model.load_state_dict(checkpoint["model_state_dict"])
         model.eval()
         return model, classes
     except FileNotFoundError as e:
@@ -83,16 +88,18 @@ def _load_model():
         raise RuntimeError(f"Erreur lors du chargement du modèle : {e}") from e
 
 
-_TRANSFORM = transforms.Compose([
-    transforms.Resize((FEUILLE_IMG_SIZE, FEUILLE_IMG_SIZE)),
-    transforms.ToTensor(),
-    transforms.Normalize([0.485, 0.456, 0.406],
-                         [0.229, 0.224, 0.225]),
-])
- 
- 
+_TRANSFORM = transforms.Compose(
+    [
+        transforms.Resize((FEUILLE_IMG_SIZE, FEUILLE_IMG_SIZE)),
+        transforms.ToTensor(),
+        transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
+    ]
+)
+
+
 def _preprocess(image: Image.Image) -> torch.Tensor:
     return _TRANSFORM(image.convert("RGB")).unsqueeze(0).to(DEVICE)
+
 
 def analyser_feuille(image: Image.Image, top_k: int = 3) -> dict:
     """
@@ -113,7 +120,7 @@ def analyser_feuille(image: Image.Image, top_k: int = 3) -> dict:
 
         with torch.no_grad():
             logits = model(tensor)
-            probs  = torch.softmax(logits, dim=1)[0]
+            probs = torch.softmax(logits, dim=1)[0]
 
         top_indices = probs.argsort(descending=True)[:top_k].tolist()
 
@@ -122,16 +129,22 @@ def analyser_feuille(image: Image.Image, top_k: int = 3) -> dict:
             classe = classes[idx]
             plante, etat = CLASS_LABELS.get(classe, (classe, "Inconnu"))
 
-            top_resultats.append({
-                "classe": classe,
-                "plante": plante,
-                "etat": etat,
-                "confiance": round(probs[idx].item() * 100, 2),
-            })
+            top_resultats.append(
+                {
+                    "classe": classe,
+                    "plante": plante,
+                    "etat": etat,
+                    "confiance": round(probs[idx].item() * 100, 2),
+                }
+            )
 
         meilleur = top_resultats[0]
-        etat_final = "Incertain" if meilleur["confiance"] < FEUILLE_CONF_MIN else meilleur["etat"]
-        is_sain    = meilleur["etat"] == "Sain"
+        etat_final = (
+            "Incertain"
+            if meilleur["confiance"] < FEUILLE_CONF_MIN
+            else meilleur["etat"]
+        )
+        is_sain = meilleur["etat"] == "Sain"
         return {
             "success": True,
             "plante": meilleur["plante"],

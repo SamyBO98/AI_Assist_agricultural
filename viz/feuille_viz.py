@@ -20,9 +20,16 @@ def pipeline_feuille(image: Image.Image, resultat: dict):
         fig, ax = plt.subplots(figsize=(8, 3))
         fig.patch.set_facecolor("#1a1a2e")
         ax.set_facecolor("#1a1a2e")
-        ax.text(0.5, 0.5, f"Erreur : {resultat.get('error', 'inconnue')}",
-                color="#f44336", fontsize=13, ha="center", va="center",
-                transform=ax.transAxes)
+        ax.text(
+            0.5,
+            0.5,
+            f"Erreur : {resultat.get('error', 'inconnue')}",
+            color="#f44336",
+            fontsize=13,
+            ha="center",
+            va="center",
+            transform=ax.transAxes,
+        )
         ax.axis("off")
         return fig, "Analyse impossible."
 
@@ -44,7 +51,9 @@ def pipeline_feuille(image: Image.Image, resultat: dict):
     ax_img = fig.add_subplot(1, 2, 1)
     ax_img.imshow(image)
     ax_img.axis("off")
-    ax_img.set_title("Image analysée", color="white", fontsize=11, fontweight="bold", pad=10)
+    ax_img.set_title(
+        "Image analysée", color="white", fontsize=11, fontweight="bold", pad=10
+    )
 
     # Cadre coloré autour de l'image selon le résultat
     for spine in ax_img.spines.values():
@@ -60,19 +69,30 @@ def pipeline_feuille(image: Image.Image, resultat: dict):
     valeurs = [r["confiance"] for r in top_k]
     conf_max = valeurs[0] if valeurs[0] > 0 else 1
     couleurs = [
-        couleur_principale if i == 0
-        else (*plt.matplotlib.colors.to_rgb("#546e7a"), max(0.3, r["confiance"] / conf_max))
+        (
+            couleur_principale
+            if i == 0
+            else (
+                *plt.matplotlib.colors.to_rgb("#546e7a"),
+                max(0.3, r["confiance"] / conf_max),
+            )
+        )
         for i, r in enumerate(top_k)
     ]
 
     y_pos = np.arange(len(labels))
-    bars  = ax_bar.barh(y_pos, valeurs, color=couleurs, height=0.5, edgecolor="none")
+    bars = ax_bar.barh(y_pos, valeurs, color=couleurs, height=0.5, edgecolor="none")
 
     # Valeurs sur les barres
     for bar, val in zip(bars, valeurs):
         ax_bar.text(
-            min(val + 1.5, 102), bar.get_y() + bar.get_height() / 2,
-            f"{val:.1f}%", va="center", color="white", fontsize=9, fontweight="bold"
+            min(val + 1.5, 102),
+            bar.get_y() + bar.get_height() / 2,
+            f"{val:.1f}%",
+            va="center",
+            color="white",
+            fontsize=9,
+            fontweight="bold",
         )
 
     ax_bar.set_yticks(y_pos)
@@ -88,11 +108,19 @@ def pipeline_feuille(image: Image.Image, resultat: dict):
     ax_bar.xaxis.label.set_color("#aaa")
 
     # Badge statut en bas du graphique
-    statut_txt = "SAIN" if sain else ("INCERTAIN" if etat == "Incertain" else "MALADIE DETECTEE")
+    statut_txt = (
+        "SAIN" if sain else ("INCERTAIN" if etat == "Incertain" else "MALADIE DETECTEE")
+    )
     ax_bar.text(
-        0.5, 1.08, f"Confiance : {confiance:.1f}%",
-        ha="center", va="bottom", fontsize=13, fontweight="bold",
-        color=couleur_principale, transform=ax_bar.transAxes
+        0.5,
+        1.08,
+        f"Confiance : {confiance:.1f}%",
+        ha="center",
+        va="bottom",
+        fontsize=13,
+        fontweight="bold",
+        color=couleur_principale,
+        transform=ax_bar.transAxes,
     )
 
     plt.tight_layout(rect=[0, 0.06, 1, 1])

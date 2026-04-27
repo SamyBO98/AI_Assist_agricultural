@@ -2,28 +2,36 @@ import numpy as np
 import matplotlib.pyplot as plt
 import warnings
 from services.vache_service import analyser_vache
+
 warnings.filterwarnings("ignore")
 
 
-def creer_graphs(prediction, score_sante, alertes,
-                 production, taux_tb, taux_tp, temperature_v, ccs, bcs):
+def creer_graphs(
+    prediction,
+    score_sante,
+    alertes,
+    production,
+    taux_tb,
+    taux_tp,
+    temperature_v,
+    ccs,
+    bcs,
+):
 
     labels_radar = ["Production", "TB", "TP", "Température", "CCS\n(inversé)", "BCS"]
 
-    norm_prod  = np.clip((production - 8) / (50 - 8), 0, 1)
-    norm_tb    = np.clip((taux_tb - 28) / (52 - 28), 0, 1)
-    norm_tp    = np.clip((taux_tp - 24) / (42 - 24), 0, 1)
-    norm_temp  = np.clip(1 - abs(temperature_v - 38.5) / 1.5, 0, 1)
-    norm_ccs   = np.clip(1 - (ccs - 10) / 1990, 0, 1)
-    norm_bcs   = np.clip(1 - abs(bcs - 3.0) / 1.5, 0, 1)
+    norm_prod = np.clip((production - 8) / (50 - 8), 0, 1)
+    norm_tb = np.clip((taux_tb - 28) / (52 - 28), 0, 1)
+    norm_tp = np.clip((taux_tp - 24) / (42 - 24), 0, 1)
+    norm_temp = np.clip(1 - abs(temperature_v - 38.5) / 1.5, 0, 1)
+    norm_ccs = np.clip(1 - (ccs - 10) / 1990, 0, 1)
+    norm_bcs = np.clip(1 - abs(bcs - 3.0) / 1.5, 0, 1)
 
     values_radar = [norm_prod, norm_tb, norm_tp, norm_temp, norm_ccs, norm_bcs]
     values_radar += [values_radar[0]]
 
     angles = np.linspace(0, 2 * np.pi, len(labels_radar), endpoint=False).tolist()
     angles += angles[:1]
-
-
 
     fig = plt.figure(figsize=(11, 4.5))
     fig.patch.set_facecolor("#1a1a2e")
@@ -55,17 +63,29 @@ def creer_graphs(prediction, score_sante, alertes,
 
     ax2.barh(0.5, 100, height=0.3, color="#333")
 
-    bar_color = "#4CAF50" if score_sante >= 70 else ("#FF9800" if score_sante >= 45 else "#f44336")
+    bar_color = (
+        "#4CAF50"
+        if score_sante >= 70
+        else ("#FF9800" if score_sante >= 45 else "#f44336")
+    )
 
     ax2.barh(0.5, score_sante, height=0.3, color=bar_color)
 
-    ax2.text(score_sante / 2, 0.5, f"{score_sante}/100",
-             ha="center", va="center", color="white", fontsize=14, fontweight="bold")
+    ax2.text(
+        score_sante / 2,
+        0.5,
+        f"{score_sante}/100",
+        ha="center",
+        va="center",
+        color="white",
+        fontsize=14,
+        fontweight="bold",
+    )
 
     zones = [
         (0, 45, "#f44336", "Risque élevé"),
         (45, 70, "#FF9800", "Surveillance"),
-        (70, 100, "#4CAF50", "Sain")
+        (70, 100, "#4CAF50", "Sain"),
     ]
 
     for start, end, c, lbl in zones:
@@ -83,30 +103,54 @@ def creer_graphs(prediction, score_sante, alertes,
     texte = (
         f"{statut} — Score : {score_sante}/100\n\n"
         f"Modèle : Isolation Forest\n\n"
-        f"Alertes :\n"
-        + "\n".join(f"- {a}" for a in alertes)
+        f"Alertes :\n" + "\n".join(f"- {a}" for a in alertes)
     )
 
     plt.tight_layout()
 
     return fig, texte
 
-def pipeline_vache(model, scaler, score_min, score_max,
-                   production, taux_tb, taux_tp,
-                   temperature_v, ccs, bcs,
-                   age_mois, lactation_j):
+
+def pipeline_vache(
+    model,
+    scaler,
+    score_min,
+    score_max,
+    production,
+    taux_tb,
+    taux_tp,
+    temperature_v,
+    ccs,
+    bcs,
+    age_mois,
+    lactation_j,
+):
 
     alertes, prediction, score_sante = analyser_vache(
-        model, scaler, score_min, score_max,
-        production, taux_tb, taux_tp,
-        temperature_v, ccs, bcs,
-        age_mois, lactation_j
+        model,
+        scaler,
+        score_min,
+        score_max,
+        production,
+        taux_tb,
+        taux_tp,
+        temperature_v,
+        ccs,
+        bcs,
+        age_mois,
+        lactation_j,
     )
 
     fig, texte = creer_graphs(
-        prediction, score_sante, alertes,
-        production, taux_tb, taux_tp,
-        temperature_v, ccs, bcs
+        prediction,
+        score_sante,
+        alertes,
+        production,
+        taux_tb,
+        taux_tp,
+        temperature_v,
+        ccs,
+        bcs,
     )
 
     return fig, texte, alertes, prediction, score_sante

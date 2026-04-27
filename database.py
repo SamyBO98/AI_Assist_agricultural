@@ -1,34 +1,21 @@
 import os
 from datetime import datetime, timezone
 
-from sqlalchemy import (
-    create_engine,
-    Column,
-    Integer,
-    Float,
-    String,
-    DateTime,
-    JSON
-)
-from sqlalchemy.orm import DeclarativeBase,sessionmaker 
-
+from sqlalchemy import create_engine, Column, Integer, Float, String, DateTime, JSON
+from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
 
 os.makedirs("db", exist_ok=True)
 
 DATABASE_URL = "sqlite:///db/agricole.db"
 
-engine = create_engine(
-    DATABASE_URL,
-    connect_args={"check_same_thread": False}
-)
+engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 
 SessionLocal = sessionmaker(bind=engine)
 
 
 class Base(DeclarativeBase):
     pass
-
 
 
 class AnalyseCulture(Base):
@@ -38,7 +25,7 @@ class AnalyseCulture(Base):
     created_at = Column(
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
-        nullable=False
+        nullable=False,
     )
 
     # Inputs
@@ -56,7 +43,7 @@ class AnalyseCulture(Base):
     ecart_pct = Column(Float, nullable=False)
     risque_score = Column(Integer, nullable=False)
     risque_label = Column(String(20), nullable=False)
-    conseils = Column(JSON, nullable=False)   # JSON list
+    conseils = Column(JSON, nullable=False)  # JSON list
 
 
 class AnalyseVache(Base):
@@ -66,7 +53,7 @@ class AnalyseVache(Base):
     created_at = Column(
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
-        nullable=False
+        nullable=False,
     )
 
     # Inputs
@@ -84,7 +71,7 @@ class AnalyseVache(Base):
     prediction = Column(Integer, nullable=False)
     statut = Column(String(30), nullable=False)
     priorite = Column(String(30), nullable=False)
-    alertes = Column(JSON, nullable=False)    # JSON list
+    alertes = Column(JSON, nullable=False)  # JSON list
 
 
 class AnalyseFeuille(Base):
@@ -94,7 +81,7 @@ class AnalyseFeuille(Base):
     created_at = Column(
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
-        nullable=False
+        nullable=False,
     )
 
     # Results
@@ -105,7 +92,6 @@ class AnalyseFeuille(Base):
     top_k = Column(JSON, nullable=False)  # JSON list
 
 
-
 def init_db():
     """Crée les tables si elles n'existent pas."""
     Base.metadata.create_all(engine)
@@ -114,7 +100,6 @@ def init_db():
 def get_session():
     """Retourne une nouvelle session SQLAlchemy."""
     return SessionLocal()
-
 
 
 def save_analyse_culture(data: dict) -> int:
@@ -173,7 +158,8 @@ def save_analyse_vache(data: dict) -> int:
         except Exception:
             session.rollback()
             raise
-    
+
+
 def save_analyse_feuille(data: dict) -> int:
     """Persiste une analyse feuille. Retourne l'id inséré."""
     with get_session() as session:
