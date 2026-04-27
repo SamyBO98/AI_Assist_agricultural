@@ -7,33 +7,33 @@ import warnings
 
 warnings.filterwarnings("ignore", category=UserWarning)
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-
 from database import init_db, save_analyse_culture
 from services.culture_service import predire_rendement
 from reports.pdf_report import calcul_risque_agronomique
 from contextlib import asynccontextmanager
-
-
-init_db()
-
+from typing import Literal
 from models.culture import load_or_train_culture
 from models.troupeau import load_or_train_troupeau
 from pydantic import BaseModel, Field
+import logging
 
-model_culture = scaler_culture = None
-model_vache = scaler_vache = score_min = score_max = None
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global model_culture, scaler_culture
-    global model_vache, scaler_vache, score_min, score_max
-
-    model_culture, scaler_culture, _, _, _ = load_or_train_culture()
-    model_vache, scaler_vache, score_min, score_max = load_or_train_troupeau()
-
+    init_db()
+    app.state.model_culture, app.state.scaler_culture, _, _, _ = load_or_train_culture()
+    (
+        app.state.model_vache,
+        app.state.scaler_vache,
+        app.state.score_min,
+        app.state.score_max,
+    ) = load_or_train_troupeau()
     yield
 
 
@@ -61,7 +61,9 @@ class CultureInput(BaseModel):
     densite_semis: float = Field(
         ..., ge=1, le=600, description="Densité de semis (gr/m²)"
     )
-    type_sol: str = Field(..., description="Type de sol (ex: Limoneux)")
+    type_sol: Literal["Limoneux", "Argileux", "Sableux", "Calcaire"] = Field(
+        ..., description="Type de sol"
+    )
 
 
 class VacheInput(BaseModel):
@@ -85,11 +87,14 @@ def root():
 
 
 @app.post("/culture", tags=["Culture"])
-def analyse_culture(data: CultureInput):
+def analyse_culture(data: CultureInput, request: Request):
+    logger.info(
+        "Analyse culture lancée : sol=%s temp=%.1f", data.type_sol, data.temperature
+    )
     try:
         rendement_pred, rend_opt, ecart, conseils = predire_rendement(
-            model_culture,
-            scaler_culture,
+            request.app.state.model_culture,
+            request.app.state.scaler_culture,
             data.temperature,
             data.pluviometrie,
             data.azote,
@@ -125,7 +130,13 @@ def analyse_culture(data: CultureInput):
         }
 
         row["id"] = save_analyse_culture(row)
+        logger.info(
+            "Analyse culture OK : id=%s rendement=%.2f",
+            row["id"],
+            row["rendement_pred"],
+        )
         return row
 
     except Exception as e:
+        logger.error("Erreur /culture : %s", e)
         raise HTTPException(status_code=500, detail=str(e))
