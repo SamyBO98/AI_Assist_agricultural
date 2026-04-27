@@ -47,3 +47,18 @@ class CultureInput(BaseModel):
         ..., ge=1, le=600, description="Densité de semis (gr/m²)"
     )
     type_sol: str = Field(..., description="Type de sol (ex: Limoneux)")
+
+
+class VacheInput(BaseModel):
+    production: float = Field(..., ge=0, le=90, description="Production lait (L/j)")
+    taux_tb: float = Field(..., ge=20, le=80, description="Taux butyreux (g/kg)")
+    taux_tp: float = Field(..., ge=20, le=60, description="Taux protéique (g/kg)")
+    temperature_v: float = Field(
+        ..., ge=35, le=42, description="Température corporelle (°C)"
+    )
+    ccs: float = Field(..., ge=10, le=10000, description="Cellules somatiques (k/mL)")
+    bcs: float = Field(..., ge=1, le=5, description="Body Condition Score")
+    age_mois: float = Field(..., ge=12, le=240, description="Âge (mois)")
+    lactation_j: float = Field(
+        ..., ge=1, le=500, description="Stade de lactation (jours)"
+    )
