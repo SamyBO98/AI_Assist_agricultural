@@ -62,6 +62,9 @@ AI_Assist_agricultural/
 +-- tests/
 |   +-- test_db.py              # Tests de la base de données
 |
++-- scripts/
+|   +-- view_db.py              # Affiche le contenu des 3 tables SQLite (debug)
+|
 +-- viz/
     +-- culture_viz.py          # Graphiques culture
     +-- feuille_viz.py          # Graphiques feuille (top-3 confiance)
@@ -221,11 +224,23 @@ L'entraînement dure environ 20-30 minutes sur GPU NVIDIA (CUDA). Le meilleur ch
 
 ## Base de données
 
-Chaque export PDF déclenche une sauvegarde automatique de l'analyse dans une base SQLite locale (`db/agricole.db`), gérée via SQLAlchemy.
+Les analyses sont persistées dans une base SQLite locale (`db/agricole.db`), gérée via SQLAlchemy.
 
-Deux tables : `analyses_culture` et `analyses_vache`. Chaque ligne contient les paramètres saisis, les résultats (score, statut, conseils) et un timestamp UTC.
+Trois tables :
 
-La base est créée automatiquement au premier lancement, le dossier `db/` n'est pas versionné.
+| Table | Déclencheur | Contenu |
+|---|---|---|
+| `analyses_culture` | Clic sur **Exporter en PDF** | Paramètres agronomiques, rendement prédit, risque, conseils |
+| `analyses_vache` | Clic sur **Exporter en PDF** | Profil vache, score santé, statut, alertes |
+| `analyses_feuille` | Clic sur **Analyser** | Plante, état, confiance, top-3 prédictions |
+
+Chaque ligne inclut un timestamp UTC. La base est créée automatiquement au premier lancement, le dossier `db/` n'est pas versionné.
+
+Pour inspecter le contenu des tables en console :
+
+```bash
+python scripts/view_db.py
+```
 
 Pour lancer les tests :
 
@@ -244,5 +259,6 @@ python -m pytest tests/ -v
 
 - [ ] Intégration de données réelles open-data (culture/vache)
 - [x] Module de détection de maladies foliaires par image (PlantVillage) : intégré
+- [x] Persistance des analyses feuille en base de données : intégré
 - [ ] API REST pour intégration dans d'autres outils
 - [ ] Historique des analyses par exploitation
