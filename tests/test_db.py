@@ -7,9 +7,9 @@ import sys
 import os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from database import init_db, save_analyse_culture, save_analyse_vache, engine
-from sqlalchemy.orm import Session
-from database import AnalyseCulture, AnalyseVache
+from database import init_db, save_analyse_culture, save_analyse_vache, save_analyse_feuille, engine
+from database import AnalyseCulture, AnalyseVache, AnalyseFeuille
+from database import SessionLocal
 
 
 def test_save_culture():
@@ -24,7 +24,7 @@ def test_save_culture():
     row_id = save_analyse_culture(data)
     assert isinstance(row_id, int) and row_id > 0
 
-    with Session(engine) as session:
+    with SessionLocal() as session:
         row = session.get(AnalyseCulture, row_id)
         assert row is not None
         assert row.type_sol == "Limoneux"
@@ -46,7 +46,7 @@ def test_save_vache():
     row_id = save_analyse_vache(data)
     assert isinstance(row_id, int) and row_id > 0
 
-    with Session(engine) as session:
+    with SessionLocal() as session:
         row = session.get(AnalyseVache, row_id)
         assert row is not None
         assert row.statut == "NORMAL"
@@ -54,15 +54,43 @@ def test_save_vache():
         assert row.created_at is not None
     print(f"[vache]   OK — id={row_id}")
 
+def test_save_feuille():
+    init_db()
+    data = dict(
+        plante="Tomate",
+        etat="Mildiou",
+        confiance=97.3,
+        sain=False,
+        top_k=[
+            {"classe": "Tomato___Late_blight", "plante": "Tomate", "etat": "Mildiou",   "confiance": 97.3},
+            {"classe": "Tomato___Early_blight","plante": "Tomate", "etat": "Alternariose précoce", "confiance": 1.8},
+            {"classe": "Tomato___healthy",     "plante": "Tomate", "etat": "Sain",       "confiance": 0.5},
+        ],
+    )
+    row_id = save_analyse_feuille(data)
+    assert isinstance(row_id, int) and row_id > 0
+ 
+    with SessionLocal() as session:
+        row = session.get(AnalyseFeuille, row_id)
+        assert row is not None
+        assert row.plante == "Tomate"
+        assert row.etat == "Mildiou"
+        assert row.sain == 0
+        assert isinstance(row.top_k, list) and len(row.top_k) == 3
+        assert row.created_at is not None
+    print(f"[feuille] OK : id={row_id}")
+
 
 def test_lecture_toutes_lignes():
     init_db()
-    with Session(engine) as session:
+    with SessionLocal() as session:
         cultures = session.query(AnalyseCulture).all()
         vaches   = session.query(AnalyseVache).all()
-    print(f"[lecture] {len(cultures)} analyse(s) culture, {len(vaches)} analyse(s) vache en base")
+        feuilles = session.query(AnalyseFeuille).all()
+    print(f"[lecture] {len(cultures)} culture(s), {len(vaches)} vache(s), {len(feuilles)} feuille(s) en base")
     assert len(cultures) >= 1
     assert len(vaches)   >= 1
+    assert len(feuilles) >= 1
 
 
 if __name__ == "__main__":
