@@ -7,16 +7,26 @@ import warnings
 
 warnings.filterwarnings("ignore", category=UserWarning)
 
-from fastapi import FastAPI, HTTPException, Request
-from fastapi.middleware.cors import CORSMiddleware
-from database import init_db, save_analyse_culture
-from services.culture_service import predire_rendement
-from reports.pdf_report import calcul_risque_agronomique
 from contextlib import asynccontextmanager
 from typing import Literal
+
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel, Field
+
+from database import (
+    init_db,
+    save_analyse_culture,
+    save_analyse_vache,
+    save_analyse_feuille,
+)
 from models.culture import load_or_train_culture
 from models.troupeau import load_or_train_troupeau
-from pydantic import BaseModel, Field
+from services.culture_service import predire_rendement
+from services.vache_service import analyser_vache
+from services.feuille_service import analyser_feuille
+from reports.pdf_report import calcul_risque_agronomique, calcul_priorite
+
 import logging
 
 
@@ -59,7 +69,7 @@ class CultureInput(BaseModel):
     ph_sol: float = Field(..., ge=2, le=11, description="pH du sol")
     matiere_org: float = Field(..., ge=0, le=100, description="Matière organique (%)")
     densite_semis: float = Field(
-        ..., ge=1, le=600, description="Densité de semis (g/m²)"
+        ..., ge=1, le=600, description="Densité de semis (gr/m²)"
     )
     type_sol: Literal["Limoneux", "Argileux", "Sableux", "Calcaire"] = Field(
         ..., description="Type de sol"
@@ -89,7 +99,9 @@ def root():
 @app.post("/culture", tags=["Culture"])
 async def analyse_culture(data: CultureInput, request: Request):
     logger.info(
-        "Analyse culture lancée : sol=%s temp=%.1f", data.type_sol, data.temperature
+        "event=culture_analysis status=start temp=%.1f sol=%s",
+        data.temperature,
+        data.type_sol,
     )
     try:
         rendement_pred, rend_opt, ecart, conseils = predire_rendement(
@@ -131,12 +143,77 @@ async def analyse_culture(data: CultureInput, request: Request):
 
         row["id"] = save_analyse_culture(row)
         logger.info(
-            "Analyse culture OK : id=%s rendement=%.2f",
+            "event=culture_analysis status=success id=%s metrics={score=%.2f, optimal=%.2f, gap=%.2f}",
             row["id"],
             row["rendement_pred"],
+            rend_opt,
+            ecart,
         )
         return row
 
     except Exception as e:
-        logger.exception("Erreur critique sur /culture")
+        logger.exception("event=culture_analysis status=error")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/vache", tags=["Vache"])
+def analyse_vache(data: VacheInput, request: Request):
+    logger.info(
+        "event=vache_analysis status=start production=%.1f ccs=%.0f",
+        data.production,
+        data.ccs,
+    )
+    try:
+        alertes, prediction, score_sante = analyser_vache(
+            request.app.state.model_vache,
+            request.app.state.scaler_vache,
+            request.app.state.score_min,
+            request.app.state.score_max,
+            data.production,
+            data.taux_tb,
+            data.taux_tp,
+            data.temperature_v,
+            data.ccs,
+            data.bcs,
+            data.age_mois,
+            data.lactation_j,
+        )
+
+        statut = "Normal" if prediction == 1 else "Anomalie détectée"
+        priorite, _, _ = calcul_priorite(
+            score_sante,
+            data.ccs,
+            data.temperature_v,
+            data.bcs,
+            data.production,
+        )
+
+        row = {
+            "production": data.production,
+            "taux_tb": data.taux_tb,
+            "taux_tp": data.taux_tp,
+            "temperature_v": data.temperature_v,
+            "ccs": data.ccs,
+            "bcs": data.bcs,
+            "age_mois": data.age_mois,
+            "lactation_j": data.lactation_j,
+            "score_sante": score_sante,
+            "prediction": int(prediction),
+            "statut": statut,
+            "priorite": priorite,
+            "alertes": alertes,
+        }
+
+        row["id"] = save_analyse_vache(row)
+        logger.info(
+            "event=vache_analysis status=success id=%s metrics={score=%.3f, prediction=%d, priority=%s}",
+            row["id"],
+            row["score_sante"],
+            prediction,
+            priorite,
+        )
+        return row
+
+    except Exception as e:
+        logger.exception("event=vache_analysis status=error")
         raise HTTPException(status_code=500, detail=str(e))
