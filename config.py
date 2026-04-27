@@ -42,3 +42,4 @@ FEUILLE_EPOCHS = 25
 FEUILLE_LR = 1e-3
 FEUILLE_IMG_SIZE = 224
 FEUILLE_DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+FEUILLE_CONF_MIN     = 50.0   # % en dessous duquel le résultat est "Incertain"

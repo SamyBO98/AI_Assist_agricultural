@@ -1,7 +1,7 @@
 import json
 import torch
-import torch.nn.functional as F
 from torchvision import transforms
+import logging
 from PIL import Image
 
 from config import (
@@ -9,10 +9,13 @@ from config import (
     FEUILLE_CLASSES_PATH,
     FEUILLE_IMG_SIZE,
     FEUILLE_DEVICE,
+    FEUILLE_CONF_MIN,
 )
 from models.feuille import build_model
 
 DEVICE = FEUILLE_DEVICE
+
+logger = logging.getLogger(__name__)
 
 
 # Noms lisibles par classe (plante, état)
@@ -62,13 +65,22 @@ from functools import lru_cache
 
 @lru_cache(maxsize=1)
 def _load_model():
-    with open(FEUILLE_CLASSES_PATH) as f:
-        classes = json.load(f)
-    checkpoint = torch.load(FEUILLE_MODEL_PATH, map_location=DEVICE, weights_only=True)
-    model = build_model(len(classes))
-    model.load_state_dict(checkpoint["model_state_dict"])
-    model.eval()
-    return model, classes
+    try:
+        with open(FEUILLE_CLASSES_PATH) as f:
+            classes = json.load(f)
+        checkpoint = torch.load(FEUILLE_MODEL_PATH, map_location=DEVICE, weights_only=True)
+        model = build_model(len(classes)) # build_model gère le .to(DEVICE)
+        model.load_state_dict(checkpoint["model_state_dict"]) 
+        model.eval()
+        return model, classes
+    except FileNotFoundError as e:
+        raise RuntimeError(
+            f"Modèle ou classes introuvable : {e}. "
+            "Lancez d'abord : python -m models.feuille"
+        ) from e
+    except Exception as e:
+        logger.exception("Erreur inattendue lors du chargement du modèle")
+        raise RuntimeError(f"Erreur lors du chargement du modèle : {e}") from e
 
 
 _TRANSFORM = transforms.Compose([
@@ -93,34 +105,45 @@ def analyser_feuille(image: Image.Image, top_k: int = 3) -> dict:
         sain: bool
         top_k: list of dict
     """
-    model, classes = _load_model()
+    try:
+        model, classes = _load_model()
+        top_k = min(top_k, len(classes))
 
-    tensor = _preprocess(image)
+        tensor = _preprocess(image)
 
-    with torch.no_grad():
-        logits = model(tensor)
-        probs = F.softmax(logits, dim=1)[0]
+        with torch.no_grad():
+            logits = model(tensor)
+            probs  = torch.softmax(logits, dim=1)[0]
 
-    top_indices = probs.argsort(descending=True)[:top_k].tolist()
+        top_indices = probs.argsort(descending=True)[:top_k].tolist()
 
-    top_resultats = []
-    for idx in top_indices:
-        classe = classes[idx]
-        plante, etat = CLASS_LABELS.get(classe, (classe, "Inconnu"))
+        top_resultats = []
+        for idx in top_indices:
+            classe = classes[idx]
+            plante, etat = CLASS_LABELS.get(classe, (classe, "Inconnu"))
 
-        top_resultats.append({
-            "classe": classe,
-            "plante": plante,
-            "etat": etat,
-            "confiance": round(probs[idx].item() * 100, 2),
-        })
+            top_resultats.append({
+                "classe": classe,
+                "plante": plante,
+                "etat": etat,
+                "confiance": round(probs[idx].item() * 100, 2),
+            })
 
-    meilleur = top_resultats[0]
-
-    return {
-        "plante": meilleur["plante"],
-        "etat": meilleur["etat"],
-        "confiance": meilleur["confiance"],
-        "sain": meilleur["etat"] == "Sain",
-        "top_k": top_resultats,
-    }
+        meilleur = top_resultats[0]
+        etat_final = "Incertain" if meilleur["confiance"] < FEUILLE_CONF_MIN else meilleur["etat"]
+        is_sain    = meilleur["etat"] == "Sain"
+        return {
+            "success": True,
+            "plante": meilleur["plante"],
+            "etat": etat_final,
+            "confiance": meilleur["confiance"],
+            "sain": is_sain,
+            "top_k": top_resultats,
+        }
+    except RuntimeError:
+        raise
+    except (OSError, ValueError, TypeError) as e:
+        return {"error": f"Image invalide ou format non supporté : {e}"}
+    except Exception as e:
+        logger.exception("Erreur inattendue lors de l'analyse de l'image")
+        raise RuntimeError(f"Erreur inattendue lors de l'analyse : {e}") from e
