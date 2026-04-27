@@ -59,7 +59,7 @@ class CultureInput(BaseModel):
     ph_sol: float = Field(..., ge=2, le=11, description="pH du sol")
     matiere_org: float = Field(..., ge=0, le=100, description="Matière organique (%)")
     densite_semis: float = Field(
-        ..., ge=1, le=600, description="Densité de semis (gr/m²)"
+        ..., ge=1, le=600, description="Densité de semis (g/m²)"
     )
     type_sol: Literal["Limoneux", "Argileux", "Sableux", "Calcaire"] = Field(
         ..., description="Type de sol"
@@ -87,7 +87,7 @@ def root():
 
 
 @app.post("/culture", tags=["Culture"])
-def analyse_culture(data: CultureInput, request: Request):
+async def analyse_culture(data: CultureInput, request: Request):
     logger.info(
         "Analyse culture lancée : sol=%s temp=%.1f", data.type_sol, data.temperature
     )
@@ -138,5 +138,5 @@ def analyse_culture(data: CultureInput, request: Request):
         return row
 
     except Exception as e:
-        logger.error("Erreur /culture : %s", e)
+        logger.exception("Erreur critique sur /culture")
         raise HTTPException(status_code=500, detail=str(e))
