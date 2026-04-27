@@ -90,11 +90,9 @@ def pipeline_feuille(image: Image.Image, resultat: dict):
     # Badge statut en bas du graphique
     statut_txt = "SAIN" if sain else ("INCERTAIN" if etat == "Incertain" else "MALADIE DETECTEE")
     ax_bar.text(
-        0.5, -0.18, statut_txt,
-        ha="center", va="bottom", fontsize=10, fontweight="bold",
-        color=couleur_principale, transform=ax_bar.transAxes,
-        bbox=dict(boxstyle="round,pad=0.4", facecolor="#1a1a2e",
-                  edgecolor=couleur_principale, linewidth=1.5)
+        0.5, 1.08, f"Confiance : {confiance:.1f}%",
+        ha="center", va="bottom", fontsize=13, fontweight="bold",
+        color=couleur_principale, transform=ax_bar.transAxes
     )
 
     plt.tight_layout(rect=[0, 0.06, 1, 1])
