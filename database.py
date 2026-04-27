@@ -116,6 +116,7 @@ def get_session():
     return SessionLocal()
 
 
+
 def save_analyse_culture(data: dict) -> int:
     """Persiste une analyse culture et retourne l'id."""
     with get_session() as session:

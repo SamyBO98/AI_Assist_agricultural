@@ -17,7 +17,7 @@ from reports.pdf_report import (
 from services.culture_service import predire_rendement
 from services.feuille_service import analyser_feuille
 from viz.feuille_viz import pipeline_feuille
-from database import init_db, save_analyse_culture, save_analyse_vache
+from database import init_db, save_analyse_culture, save_analyse_vache, save_analyse_feuille
 
 init_db()
 
@@ -215,6 +215,7 @@ def pipeline_feuille_wrapper(image):
     resultat  = analyser_feuille(pil_image)
     if not resultat.get("success"):
         return None, "", f"<p style='color:red'>{resultat.get('error', 'Erreur inconnue')}</p>"
+    save_analyse_feuille(resultat)
     fig, texte = pipeline_feuille(pil_image, resultat)
     return fig, texte, ""
 

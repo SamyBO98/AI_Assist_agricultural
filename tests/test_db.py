@@ -97,4 +97,4 @@ if __name__ == "__main__":
     test_save_culture()
     test_save_vache()
     test_lecture_toutes_lignes()
-    print("\nTous les tests sont passés ✓")
+    print("\nTous les tests sont passés")
