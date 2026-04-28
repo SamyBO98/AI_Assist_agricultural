@@ -6,6 +6,7 @@ Endpoints : /culture  /vache  /feuille
 import warnings
 import io
 warnings.filterwarnings("ignore", category=UserWarning)
+warnings.filterwarnings("ignore", category=UserWarning, module="sklearn")
 
 from contextlib import asynccontextmanager
 from typing import Literal
@@ -117,7 +118,7 @@ async def analyse_culture(data: CultureInput, request: Request):
             data.type_sol,
         )
 
-        risque_score, risque_label, _, _ = calcul_risque_agronomique(
+        risque_score, risque_label, _= calcul_risque_agronomique(
             data.temperature,
             data.pluviometrie,
             data.azote,
@@ -228,11 +229,10 @@ async def analyse_feuille(file: UploadFile = File(..., description="Photo de feu
     )
     if not file.content_type.startswith("image/"):
         raise HTTPException(status_code=422, detail="Le fichier doit être une image (jpg, png...)")
-    
+    contents = await file.read()
+    if len(contents) > 5_000_000:
+        raise HTTPException(status_code=413, detail="Image trop lourde (max 5 Mo)")
     try:
-        contents = await file.read()
-        if len(contents) > 5_000_000:
-            raise HTTPException(status_code=413, detail="Image trop lourde (max 5 Mo)")
         image = Image.open(io.BytesIO(contents)).convert("RGB")
     except Exception:
         logger.exception("event=feuille_analysis status=error reason=unreadable_image")
