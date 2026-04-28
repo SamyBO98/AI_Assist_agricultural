@@ -33,6 +33,7 @@ Trois modules indépendants : **prédiction de rendement céréalier**, **détec
 AI_Assist_agricultural/
 |
 +-- app.py                      # Interface Gradio, point d'entrée
++-- api.py                      # API REST FastAPI (endpoints /culture /vache /feuille)
 +-- config.py                   # Configuration globale (types de sol, palette couleurs, hyperparamètres feuille)
 +-- database.py                 # Modèles SQLAlchemy + fonctions de persistance
 +-- requirements.txt            # Dépendances Python
@@ -61,6 +62,7 @@ AI_Assist_agricultural/
 |
 +-- tests/
 |   +-- test_db.py              # Tests de la base de données
+|   +-- test_api.py             # Tests des endpoints REST (16 tests)
 |
 +-- scripts/
 |   +-- view_db.py              # Affiche le contenu des 3 tables SQLite (debug)
@@ -104,10 +106,18 @@ pip install -r requirements-dev.txt
 ### 4. Lancer l'application
 
 ```bash
+# Interface Gradio
 python app.py
 ```
 
 L'interface est accessible à l'adresse **http://localhost:7860**
+
+```bash
+# API REST
+uvicorn api:app --reload
+```
+
+La documentation interactive est accessible à l'adresse **http://localhost:8000/docs**
 
 > Au premier lancement, les modèles culture et vache s'entraînent et se sauvegardent dans `models/saved/`.
 > Les lancements suivants chargent directement les fichiers, démarrage quasi-instantané.
@@ -260,5 +270,5 @@ python -m pytest tests/ -v
 - [ ] Intégration de données réelles open-data (culture/vache)
 - [x] Module de détection de maladies foliaires par image (PlantVillage) : intégré
 - [x] Persistance des analyses feuille en base de données : intégré
-- [ ] API REST pour intégration dans d'autres outils
+- [x] API REST pour intégration dans d'autres outils : intégré (FastAPI, `/docs` sur port 8000)
 - [ ] Historique des analyses par exploitation
