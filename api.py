@@ -4,15 +4,16 @@ Endpoints : /culture  /vache  /feuille
 """
 
 import warnings
-
+import io
 warnings.filterwarnings("ignore", category=UserWarning)
 
 from contextlib import asynccontextmanager
 from typing import Literal
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
+from PIL import Image
 
 from database import (
     init_db,
@@ -217,3 +218,45 @@ async def analyse_vache(data: VacheInput, request: Request):
     except Exception as e:
         logger.exception("event=vache_analysis status=error")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/feuille", tags=["Feuille"])
+async def analyse_feuille(file: UploadFile = File(..., description="Photo de feuille (jpg/png)")):
+    logger.info(
+        "event=feuille_analysis status=start fichier=%s",
+        file.filename,
+    )
+    if not file.content_type.startswith("image/"):
+        raise HTTPException(status_code=422, detail="Le fichier doit être une image (jpg, png...)")
+    
+    try:
+        contents = await file.read()
+        if len(contents) > 5_000_000:
+            raise HTTPException(status_code=413, detail="Image trop lourde (max 5 Mo)")
+        image = Image.open(io.BytesIO(contents)).convert("RGB")
+    except Exception:
+        logger.exception("event=feuille_analysis status=error reason=unreadable_image")
+        raise HTTPException(status_code=422, detail="Image illisible ou format non supporté")
+    try:
+        resultat = analyser_feuille(image)
+    except RuntimeError as e:
+        logger.exception("event=feuille_analysis status=error reason=model_failure")
+        raise HTTPException(status_code=503, detail=str(e))
+    if not resultat.get("success"):
+        logger.error(
+            "event=feuille_analysis status=error reason=analyse_failure detail=%s",
+            resultat.get("error"),
+        )
+        raise HTTPException(status_code=500, detail=resultat.get("error", "Erreur analyse"))
+ 
+    resultat["id"] = save_analyse_feuille(resultat)
+    logger.info(
+        "event=feuille_analysis status=success id=%s metrics={plante=%s, etat=%s, confiance=%.2f}",
+        resultat["id"],
+        resultat["plante"],
+        resultat["etat"],
+        resultat["confiance"],
+    )
+    resultat.pop("success")
+    return resultat
+    
